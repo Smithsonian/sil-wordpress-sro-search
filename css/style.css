@@ -1,0 +1,43 @@
+#sro .result {
+	padding: 15px 0;
+	text-indent: -22px;
+	padding-left: 72px;
+	padding-right: 60px; 
+	position: relative;
+	min-height: 30px;
+}
+
+.result:before {
+	font-family:"Font Awesome 5 Light";
+	font-weight:400;
+	font-size: 150%;
+	position: absolute;
+	left: 0;
+	text-indent: 0;
+	color: black;
+}
+#sro .schema-dot-org {
+	display: none;
+}
+#sro .altmetric-embed {
+	float: right;
+	margin-right: -80px;
+}
+#sro #summary {
+	font-size: 120%;
+}
+
+#sro #pagination {
+	padding: 20px 0;
+}
+
+#sro #pagination a, #sro #pagination .current {
+	border: 1px solid #999;
+	padding: 7px 10px;
+	margin: 0px 3px;
+	border-radius: 6px;
+}
+
+#sro #pagination .current {
+	background: #ccc;
+}
