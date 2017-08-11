@@ -87,41 +87,47 @@ class SROSearch {
 		if(is_admin()) {
 			$my_settings_page = new SROSettingsPage();
 		}
-		add_action('init', array($this, 'search_submit'));
+		// add_action('init', array($this, 'search_submit'));
+		add_shortcode('sro-search-results', array($this, 'search_submit'));
 	}
 
 	public function get_form($type = 'basic', $query = '') {
-		$ret = '<form name="sro_basic_search" method="GET" action="/">';
+		$ret = '<form name="sro_basic_search" method="GET" action="/publications/">';
 		$ret .= '<input type="hidden" name="action" value="sro_search_results">';
 		if ($type == 'basic') {
 			$ret .= '<input type="text" id="sro_q" name="sro_q" />';
 		}
 		if ($type == 'advanced') {
-			$ret .= "<h2>Advanced Search</h2>";
+			$ret .= "<h4>Advanced Search</h4>";
 			$ret .= '<input type="text" id="sro_q" name="sro_q" value="'.$query.'" style="width: 60%" />';
 		}
-		$ret .= get_submit_button('Go', 'primary large', null, false);
+		$ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
 		$ret .= '</form>';
 		return $ret;
 	}
 
 	function search_submit() {
 
+		wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
+		wp_enqueue_style('silibraries-sro');
+		wp_register_style('silibraries-sro-fa-reg', plugins_url('/css/font-awesome-regular.css', __FILE__));
+		wp_enqueue_style('silibraries-sro-fa-reg');
+		wp_register_style('silibraries-sro-fa-core', plugins_url('/css/font-awesome-core.css', __FILE__));
+		wp_enqueue_style('silibraries-sro-fa-core');
+		wp_register_style('silibraries-sro-fa-light', plugins_url('/css/font-awesome-light.css', __FILE__));
+		wp_enqueue_style('silibraries-sro-fa-light');
+		wp_register_style('silibraries-sro-fa-solid', plugins_url('/css/font-awesome-solid.css', __FILE__));
+		wp_enqueue_style('silibraries-sro-fa-solid');
+		wp_register_style('silibraries-sro-fa-solid', plugins_url('/css/font-awesome-solid.css', __FILE__));
+		wp_enqueue_style('silibraries-sro-fa-solid');
+		wp_register_script('altmetric', 'https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js');
+		wp_enqueue_script('altmetric');
+
+		print '<div id="sro">';
+		print $this->get_form('advanced', $_GET['sro_q']);
+
+
 		if (isset($_GET['action']) && $_GET['action'] === 'sro_search_results') {
-			wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
-			wp_enqueue_style('silibraries-sro');
-			wp_register_style('silibraries-sro-fa-reg', plugins_url('/css/font-awesome-regular.css', __FILE__));
-			wp_enqueue_style('silibraries-sro-fa-reg');
-			wp_register_style('silibraries-sro-fa-core', plugins_url('/css/font-awesome-core.css', __FILE__));
-			wp_enqueue_style('silibraries-sro-fa-core');
-			wp_register_style('silibraries-sro-fa-light', plugins_url('/css/font-awesome-light.css', __FILE__));
-			wp_enqueue_style('silibraries-sro-fa-light');
-			wp_register_style('silibraries-sro-fa-solid', plugins_url('/css/font-awesome-solid.css', __FILE__));
-			wp_enqueue_style('silibraries-sro-fa-solid');
-			wp_register_style('silibraries-sro-fa-solid', plugins_url('/css/font-awesome-solid.css', __FILE__));
-			wp_enqueue_style('silibraries-sro-fa-solid');
-			wp_register_script('altmetric', 'https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js');
-			wp_enqueue_script('altmetric');
 
 			// Do the search at SRO in JSON
 			$results = null;
@@ -149,10 +155,6 @@ class SROSearch {
 			}
 
 			// Print the output, includes all the components to make a full poage.
-			get_header();
-			print '<div id="sro">';
-			print "<h1>Publications Search</h1>";
-			print $this->get_form('advanced', $_GET['sro_q']);
 
 			if ($results) {
 				print "<h2>Search Results</h2>";				
@@ -197,11 +199,8 @@ class SROSearch {
 				print '<div id="pagination">'.$pagination.'</div>';
 			}
 
-			get_sidebar( 'content-bottom' );
 			print '</div>';
-			get_sidebar();
-			get_footer();
-			die;
+
 		}
 	}
 
@@ -928,8 +927,71 @@ class SROSearch {
 	}
 }
 
+function sro_insert_search_results_page() {
+	if (is_multisite() && $network_wide) { 
+		global $wpdb;
+		
+		foreach ($wpdb->get_col("SELECT blog_id FROM $wpdb->blogs") as $blog_id) {
+			switch_to_blog($blog_id);
+			_sro_insert_page();
+			restore_current_blog();
+		} 
+	} else {
+		// Create post object
+		_sro_insert_page();
+	}
+}
+
+function sro_insert_search_results_page_new_blog($blog_id, $user_id, $domain, $path, $site_id, $meta) {
+	//replace with your base plugin path E.g. dirname/filename.php
+	if ( is_plugin_active_for_network( 'silibraries-sro/silibraries-sro.php' ) ) {
+		switch_to_blog($blog_id);
+		_sro_insert_page();
+		restore_current_blog();
+	} 
+}
+
+function sro_remove_search_results_page() {
+	if (is_multisite() && $network_wide) { 
+		global $wpdb;
+		
+		foreach ($wpdb->get_col("SELECT blog_id FROM $wpdb->blogs") as $blog_id) {
+			switch_to_blog($blog_id);
+			_sro_delete_page();
+			restore_current_blog();
+		} 
+	} else {
+		_sro_delete_page();
+	}
+}
+
+function _sro_insert_page() {
+	// Create post object
+	$my_post = array(
+		'post_title'    => 'Publication Search Results',
+		'post_name'     => 'publications',
+		'post_content'  => '[sro-search-results]',
+		'post_status'   => 'publish',
+		'post_author'   => get_current_user_id(),
+		'post_type'     => 'page',
+	);
+
+	// Insert the post into the database
+	wp_insert_post($my_post, '');
+}
+
+function _sro_delete_page() {
+	$post = get_page_by_path('publications', OBJECT, 'page');
+	wp_delete_post($post->ID);	
+}
+
+
+
 // Register our widget with an anonymous function.
 add_action( 'widgets_init', function() { register_widget('SROSearchWidget');});
 
 // Create our object and make magic happen.
 $wpSROSearch = new SROSearch();
+register_activation_hook( __FILE__, 'sro_insert_search_results_page' );
+register_deactivation_hook( __FILE__, 'sro_remove_search_results_page' );
+add_action('wpmu_new_blog', 'sro_insert_search_results_page_new_blog', 10, 6 );
