@@ -148,7 +148,7 @@ class SROSearch {
 
 				$options = get_option(
 					'sro_options',
-					array('server_url' => 'http://research.si.edu/export/srb_search_export_action_new.cfm', 'query_extra' => '')
+					array('server_url' => 'http://biblio.research.si.edu/api/search.cfm', 'query_extra' => '')
 				);
 
 				$results = file_get_contents($options['server_url'].'?search_term='.$_GET['q'].'&submit=Export+data&date=&format=JSON&Unit=All&count='.$perpage.'&pagenum='.$page);
