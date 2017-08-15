@@ -140,8 +140,8 @@ class SROSearch {
 			if (isset($_GET['perpage']) && $_GET['perpage']) {
 				$perpage = $_GET['perpage'];
 			}
-			if (isset($_GET['page']) && $_GET['page']) {
-				$page = $_GET['page'];
+			if (isset($_GET['pg']) && $_GET['pg']) {
+				$page = $_GET['pg'];
 			}
 
 			if (isset($_GET['sro_q']) && $_GET['sro_q']) {
@@ -173,7 +173,7 @@ class SROSearch {
 				if ($results->count > $perpage) {
 					$pagination =  PaginationLinks::create(
 						$page, $total_pages, 2, 
-						'<a class="page" href="?action=sro_search_results&sro_q='.urlencode($_GET['sro_q']).'&page=%d&perpage='.$perpage.'">%d</a>',
+						'<a class="page" href="?action=sro_search_results&sro_q='.urlencode($_GET['sro_q']).'&pg=%d&perpage='.$perpage.'">%d</a>',
 						'<span class="current">%d</span>'
 					);
 					print '<div id="pagination">'.$pagination.'</div>';
