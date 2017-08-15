@@ -338,7 +338,7 @@ class SROSearch {
 			if (isset($rec->doi)) {
 				$ret .= '<div id="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
 			}
-			$ret .= '<div class="result fa-copy">';
+			$ret .= '<div class="result fa-file-pdf">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -370,7 +370,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'chapter') {
 
-			$ret .= '<div class="result fa-copy">';
+			$ret .= '<div class="result fa-bookmark">';
 				$ret .= '<div class="schema-dot-org">';
 					$ret .= '<div vocab="http://schema.org/" typeof="Chapter">';
 						$ret .= '<span itemprop="name" itemtype="http://schema.org/thing">'.$rec->title.'</span>';
@@ -538,7 +538,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'thesis') {
-			$ret .= '<div class="result fa-copy">';
+			$ret .= '<div class="result fa-file-edit">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -595,7 +595,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'magazine_article') {
-			$ret .= '<div class="result fa-file-alt">';
+			$ret .= '<div class="result fa-file">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -703,7 +703,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'newspaper_article') {
-			$ret .= '<div class="result fa-list">';
+			$ret .= '<div class="result fa-newspaper">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -786,7 +786,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'map') {
-			$ret .= '<div class="result fa-file-image">';
+			$ret .= '<div class="result fa-map">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -842,7 +842,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'forum_blog') {
-			$ret .= '<div class="result fa-comment">';
+			$ret .= '<div class="result fa-comments">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
