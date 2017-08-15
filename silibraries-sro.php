@@ -95,11 +95,11 @@ class SROSearch {
 		$ret = '<form name="sro_basic_search" method="GET" action="/publications/">';
 		$ret .= '<input type="hidden" name="action" value="sro_search_results">';
 		if ($type == 'basic') {
-			$ret .= '<input type="text" id="sro_q" name="sro_q" />';
+			$ret .= '<input type="text" id="q" name="q" />';
 		}
 		if ($type == 'advanced') {
 			$ret .= "<h4>Advanced Search</h4>";
-			$ret .= '<input type="text" id="sro_q" name="sro_q" value="'.$query.'" style="width: 60%" />';
+			$ret .= '<input type="text" id="q" name="q" value="'.$query.'" style="width: 60%" />';
 		}
 		$ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
 		$ret .= '</form>';
@@ -124,7 +124,7 @@ class SROSearch {
 		wp_enqueue_script('altmetric');
 
 		print '<div id="sro">';
-		print $this->get_form('advanced', $_GET['sro_q']);
+		print $this->get_form('advanced', $_GET['q']);
 
 
 		if (isset($_GET['action']) && $_GET['action'] === 'sro_search_results') {
@@ -144,14 +144,14 @@ class SROSearch {
 				$page = $_GET['pg'];
 			}
 
-			if (isset($_GET['sro_q']) && $_GET['sro_q']) {
+			if (isset($_GET['q']) && $_GET['q']) {
 
 				$options = get_option(
 					'sro_options',
 					array('server_url' => 'http://research.si.edu/export/srb_search_export_action_new.cfm', 'query_extra' => '')
 				);
 
-				$results = file_get_contents($options['server_url'].'?search_term='.$_GET['sro_q'].'&submit=Export+data&date=&format=JSON&Unit=All&count='.$perpage.'&pagenum='.$page);
+				$results = file_get_contents($options['server_url'].'?search_term='.$_GET['q'].'&submit=Export+data&date=&format=JSON&Unit=All&count='.$perpage.'&pagenum='.$page);
 			}
 
 			// Print the output, includes all the components to make a full poage.
@@ -173,7 +173,7 @@ class SROSearch {
 				if ($results->count > $perpage) {
 					$pagination =  PaginationLinks::create(
 						$page, $total_pages, 2, 
-						'<a class="page" href="?action=sro_search_results&sro_q='.urlencode($_GET['sro_q']).'&pg=%d&perpage='.$perpage.'">%d</a>',
+						'<a class="page" href="?action=sro_search_results&q='.urlencode($_GET['q']).'&pg=%d&perpage='.$perpage.'">%d</a>',
 						'<span class="current">%d</span>'
 					);
 					print '<div id="pagination">'.$pagination.'</div>';
