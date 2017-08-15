@@ -95,11 +95,13 @@ class SROSearch {
 		$ret = '<form name="sro_basic_search" method="GET" action="/publications/">';
 		$ret .= '<input type="hidden" name="action" value="sro_search_results">';
 		if ($type == 'basic') {
-			$ret .= '<input type="text" id="q" name="q" />';
+			$ret .= '<label style="display:none" for="q">Enter search term</label>';
+			$ret .= '<input type="text" id="q" name="q"  placeholder="Enter keyword"/>';
 		}
 		if ($type == 'advanced') {
 			$ret .= "<h4>Advanced Search</h4>";
-			$ret .= '<input type="text" id="q" name="q" value="'.$query.'" style="width: 60%" />';
+			$ret .= '<label style="display:none" for="q">Enter search term</label>';
+			$ret .= '<input type="text" id="q" name="q" value="'.$query.'" style="width: 60%" placeholder="Enter keyword"/>';
 		}
 		$ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
 		$ret .= '</form>';
