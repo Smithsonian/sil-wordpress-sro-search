@@ -296,7 +296,7 @@ class SROSearch {
 
 			$ret .= '<div class="result fa-file-alt">';
 				if (isset($rec->doi)) {
-					$ret .= '<div id="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+					$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
 				}
 				// #a1#
 				$ret .= $rec->author_display;
@@ -304,7 +304,7 @@ class SROSearch {
 					$ret .= '.';
 				}
 				// #yr#
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 
 				// #ul# #t1#
 				if (preg_match('/http/', $rec->link)) {
@@ -316,7 +316,7 @@ class SROSearch {
 					$ret .= '.';
 				}
 				// #jf#
-				$ret .= ' <span id="journal_bold" class="journal_display"><em>'.$rec->journal.'</em></span>,';
+				$ret .= ' <span class="journal_bold" class="journal_display"><em>'.$rec->journal.'</em></span>,';
 
 				// #vo# #is_no#
 				if ($rec->issue > 0 && $rec->volume > 0) {
@@ -330,7 +330,7 @@ class SROSearch {
 				$ret .= ' '.$rec->pages;
 				// #doi#
 				if (isset($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'" target="_blank">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 			
@@ -338,14 +338,14 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'ejournal_article') {
 			if (isset($rec->doi)) {
-				$ret .= '<div id="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+				$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
 			}
 			$ret .= '<div class="result fa-file-pdf">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= '<a href="'.$rec->link.'">'.$rec->title.'</a>';
 				} else {
@@ -354,7 +354,7 @@ class SROSearch {
 				if (!preg_match('/[.?]$/', $rec->title)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="journal_bold" class="journal_display"><em>'.$rec->journal.'</em></span>,';
+				$ret .= ' <span class="journal_bold" class="journal_display"><em>'.$rec->journal.'</em></span>,';
 				if ($rec->issue > 0 && $rec->volume > 0) {
 					$ret .= ' '.$rec->volume.'('.$rec->issue.')';
 				} elseif ($rec->issue > 0 && $rec->volume == 0) {
@@ -364,7 +364,7 @@ class SROSearch {
 				}
 				$ret .= ' '.$rec->pages;
 				if (isset($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'" target="_blank">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -401,13 +401,13 @@ class SROSearch {
 				# BOOK CHAPTER DISPLAY
 
 				if (isset($rec->doi)) {
-					$ret .= '<div id="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+					$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
 				}
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
 				} else {
@@ -434,7 +434,7 @@ class SROSearch {
 					$ret .= ' pp. '.$rec->pages;
 				}
 				if (isset($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'" target="_blank">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -466,7 +466,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
 				} else {
@@ -494,7 +494,7 @@ class SROSearch {
 					$ret .= ' '.$rec->pages.' pages.';
 				}
 				if (isset($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'" target="_blank">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -516,7 +516,7 @@ class SROSearch {
 						$ret .= '.';
 					}
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (isset($rec->publisher_place)) {
 					$ret .= ' '.$rec->publisher_place.':';
 				}
@@ -533,7 +533,7 @@ class SROSearch {
 					$ret .= ' '.$rec->pages.' pages.';
 				}
 				if (isset($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'" target="_blank">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -545,7 +545,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
 				} else {
@@ -574,7 +574,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
 				} else {
@@ -602,7 +602,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
 				} else {
@@ -611,7 +611,7 @@ class SROSearch {
 				if (!preg_match('/[.?]$/', $rec->title)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="journal_bold" class="journal_display"><em>'.$rec->journal.'</em></span>.';
+				$ret .= ' <span class="journal_bold" class="journal_display"><em>'.$rec->journal.'</em></span>.';
 				if ($rec->issue > 0 && $rec->volume > 0) {
 					$ret .= ' '.$rec->volume.'('.$rec->issue.')';
 				} elseif ($rec->issue > 0 && $rec->volume == 0) {
@@ -642,7 +642,7 @@ class SROSearch {
 				if (isset($rec->publisher)) {
 					$ret .= ' '.$rec->publisher;
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 			$ret .= '</div>';
 
 		// ------------------------------------------------------------------------------
@@ -668,7 +668,7 @@ class SROSearch {
 				if (isset($rec->publisher)) {
 					$ret .= ' '.$rec->publisher;
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 			$ret .= '</div>';
 
 		// ------------------------------------------------------------------------------
@@ -679,7 +679,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				$ret .= '"'.$rec->title.'".';
 				$ret .= ' <em>'.$rec->journal.'</em>.';
 				if (isset($ret->editor_display)) {
@@ -722,7 +722,7 @@ class SROSearch {
 				if (isset($rec->issue)) {
 					$ret .= ' '.$rec->issue.',';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 			$ret .= '</div>';
 
 		// ------------------------------------------------------------------------------
@@ -746,7 +746,7 @@ class SROSearch {
 				if (isset($rec->publisher)) {
 					$ret .= ' '.$rec->publisher.'.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 			$ret .= '</div>';
 
 		// ------------------------------------------------------------------------------
@@ -779,7 +779,7 @@ class SROSearch {
 				if (isset($rec->publisher)) {
 					$ret .= ' '.$rec->publisher.'.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>,';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>,';
 				if (isset($rec->book_title)) {
 					$ret .= ' pp.'.$rec->pages;
 				}
@@ -809,7 +809,7 @@ class SROSearch {
 				if (isset($rec->publisher)) {
 					$ret .= ' '.$rec->publisher.',';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 			$ret .= '</div>';
 
 		// ------------------------------------------------------------------------------
@@ -820,7 +820,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 			$ret .= '</div>';
 
 		// ------------------------------------------------------------------------------
@@ -828,7 +828,7 @@ class SROSearch {
 		} elseif ($rec->pubtype == 'abstract') {
 			$ret .= '<div class="result fa-align-justify">';
 				$ret .= $rec->author_display;
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				$ret .= '[Abstract:] "'.$rec->title.'".';
 				if (isset($rec->book_title)) {
 					$ret .= ' <em>'.$rec->book_title.'</em>,';
@@ -849,7 +849,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				$ret .= ' "'.$rec->title.'".';
 				if (isset($rec->journal)) {
 					$ret = ' <em>'.$rec->journal.'</em>.';
@@ -869,7 +869,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				$ret .= '[Presentation:] "'.$rec->title.'".';
 				if (isset($rec->journal)) {
 					$ret = ' <em>'.$rec->journal.'</em>.';
@@ -889,7 +889,7 @@ class SROSearch {
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
 				}
-				$ret .= ' <span id="date_highlight" class="date_display">'.$rec->date.'</span>.';
+				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= '<a href="'.$rec->link.'">'.$rec->title.'</a>.';
 				} else {
@@ -905,7 +905,7 @@ class SROSearch {
 					$ret .= ' '.$rec->publisher.'.';
 				}
 				if (isset($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'" target="_blank">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -914,10 +914,10 @@ class SROSearch {
 //    Dashes added by JMR 2017/08/03
 // 		 } elseif ((rt eq 'Journal Article') and (k1 contains 'Book review')) {
 // 			#-a1-#
-// 				if (REfind("\.$","#-a1-#")) {  } else { . }<span id="date_highlight" class="date_display">#-yr-#</span>.
+// 				if (REfind("\.$","#-a1-#")) {  } else { . }<span class="date_highlight" class="date_display">#-yr-#</span>.
 // 				if (REfind ("[R|r]eview","#-t1-#")) { } else { [Review]:}
 // 				if (ul contains 'http') {<a href="#ul#">#-t1-#</a> } else { #-t1-#}.
-//        <span id="journal_bold" class="journal_display"><i>#jf#</i></span>,
+//        <span class="journal_bold" class="journal_display"><i>#jf#</i></span>,
 // 				if (is_no ge '0' and vo ge '0') {#vo#(#is_no#) } elseif (vo eq ' ' and is_no ge '0') { #is_no# } elseif (vo ge '0' and is_no eq ' ') { #vo#}: #sp#
 // 				if (op ge '0' and op neq sp) {-#op#. } else { }
 // 				if (doi contains '10.') {<a href="http://dx.doi.org/#doi#"> doi:#doi#</a>}<br />
