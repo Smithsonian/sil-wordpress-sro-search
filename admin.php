@@ -113,7 +113,7 @@ class SROSettingsPage {
 	 * Print the Section text
 	 */
 	public function print_server_instructions() {
-		print 'Please enter the URL for the SRO Server. (default: http://research.si.edu/export/srb_search_export_action_new.cfm)';
+		print 'Please enter the URL for the SRO Server. (default: http://biblio.research.si.edu/api/search.cfm)';
 	}
 
 	public function print_query_instructions() {
