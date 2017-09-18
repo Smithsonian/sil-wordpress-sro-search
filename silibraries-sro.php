@@ -278,7 +278,7 @@ class SROSearch {
 					}
 					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
 					if (isset($rec->doi)) {
-						$ret .= 'DOI: <span property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</span>';
+						$ret .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 					}
 					$ret .= '<span property="isPartOf" typeof="Periodical">';
 					$ret .= '<span property="name">'.$rec->journal.'</span>';
@@ -447,7 +447,7 @@ class SROSearch {
 					}
 					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
 					if (isset($rec->doi)) {
-						$ret .= 'DOI: <span property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</span>';
+						$ret .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 					}
 					$ret .= '<span itemprop="location" itemtype= "http://schema.org/event">'.$rec->publisher_place.'</span>';
 					$ret .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
