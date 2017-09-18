@@ -19,7 +19,6 @@ require_once(ABSPATH .'wp-content/plugins/silibraries-sro/admin.php');
 /*
 	Create the widget that will allow us to add the search form to the sidebar
 */
-
 class SROSearchWidget extends WP_Widget {
 
 	function __construct() {
@@ -62,12 +61,10 @@ class SROSearchWidget extends WP_Widget {
 			$title = __( 'New title', 'sro_widget_domain' );
 		}
 		// Widget admin form
-		?>
-		<p>
-			<label for="<?php print $this->get_field_id( 'title' ); ?>"><?php _e( 'Title:' ); ?></label>
-			<input class="widefat" id="<?php print $this->get_field_id( 'title' ); ?>" name="<?php print $this->get_field_name( 'title' ); ?>" type="text" value="<?php print esc_attr( $title ); ?>" />
-		</p>
-		<?php
+		echo '<p>';
+		echo '	<label for="'.$this->get_field_id( 'title' ).'"'._e( 'Title:' ).'</label>';
+		echo '	<input class="widefat" id="'.$this->get_field_id( 'title' ).'" name="'.$this->get_field_name( 'title' ).'" type="text" value="'.esc_attr( $title ).'" />';
+		echo '</p>';
 	}
 
 	// Updating widget replacing old instances with new
@@ -76,7 +73,104 @@ class SROSearchWidget extends WP_Widget {
 		$instance['title'] = ( ! empty( $new_instance['title'] ) ) ? strip_tags( $new_instance['title'] ) : '';
 		return $instance;
 	}
+} 
+
+/*
+	Create the widget that will allow us to add the search form to the sidebar
+*/
+
+class SROFixedSearchWidget extends WP_Widget {
+
+	function __construct() {
+		parent::__construct(
+
+			// Base ID of your widget
+			'sro_fixed_search_widget',
+
+			// Widget name will appear in UI
+			__('SRO Fixed Search', 'sro_fixed_widget_domain'),
+
+			// Widget description
+			array( 'description' => __( 'Static Search Results from SRO', 'sro_fixed_widget_domain' ), )
+		);
+	}
+
+	// Creating widget front-end
+	public function widget( $args, $instance ) {
+		global $wpSROSearch;
+
+		$title = apply_filters( 'widget_title', $instance['title'] );
+
+		// before and after widget arguments are defined by themes
+		print $args['before_widget'];
+		if ( ! empty( $title ) ) {
+			print $args['before_title'] . $title . $args['after_title'];
+		}
+		// Do the search with the parameters, format and return the results
+		// This is where you run the code and display the output
+		$options = get_option(
+			'sro_options',
+			array('server_url' => 'http://research.si.edu/search/', 'query_extra' => '')
+		);
+
+		$json = $wpSROSearch->_perform_query(
+			$options['server_url'], 
+			array('full_query' => $instance['search_query'])
+		);
+
+		$html .= $wpSROSearch->_format_results(
+			$json, $instance['max']
+		);
+
+		print '<div id="sro">';
+		print __($html, 'sro_widget_domain');
+		print '</div>';
+
+		print $args['after_widget'];
+	}
+
+	// Widget Backend
+	public function form( $instance ) {
+		if ( isset( $instance[ 'title' ] ) ) {
+			$title = $instance[ 'title' ];
+		} else {
+			$title = __( 'New title', 'sro_fixed_widget_domain' );
+		}
+		if ( isset( $instance[ 'search_query' ] ) ) {
+			$search_query = $instance[ 'search_query' ];
+		} else {
+			$search_query = __( 'a=b&c=d', 'sro_fixed_widget_domain' );
+		}
+		if ( isset( $instance[ 'max' ] ) ) {
+			$max = $instance[ 'max' ];
+		} else {
+			$max = __( '5', 'sro_fixed_widget_domain' );
+		}
+		// Widget admin form
+		echo '<p>';
+		echo '	<label for="'.$this->get_field_id( 'title' ).'"'._e( 'Title:' ).'</label>';
+		echo '	<input class="widefat" id="'.$this->get_field_id( 'title' ).'" name="'.$this->get_field_name( 'title' ).'" type="text" value="'.esc_attr( $title ).'" />';
+		echo '<p>';
+		echo '</p>';
+		echo '	<label for="'.$this->get_field_id( 'search_query' ).'"'._e( 'Query String:' ).'</label>';
+		echo '	<input class="widefat" id="'.$this->get_field_id( 'search_query' ).'" name="'.$this->get_field_name( 'search_query' ).'" type="text" value="'.esc_attr( $search_query ).'" />';
+		echo '</p>';
+		echo '</p>';
+		echo '	<label for="'.$this->get_field_id( 'max' ).'"'._e( '# of Results:' ).'</label>';
+		echo '	<input class="widefat" id="'.$this->get_field_id( 'max' ).'" name="'.$this->get_field_name( 'max' ).'" type="text" value="'.esc_attr( $max ).'" />';
+		echo '</p>';
+	}
+
+	// Updating widget replacing old instances with new
+	public function update( $new_instance, $old_instance ) {
+		$instance = array();
+		$instance['title'] = ( ! empty( $new_instance['title'] ) ) ? strip_tags( $new_instance['title'] ) : '';
+		$instance['search_query'] = ( ! empty( $new_instance['search_query'] ) ) ? strip_tags( $new_instance['search_query'] ) : '';
+		$instance['max'] = ( ! empty( $new_instance['max'] ) ) ? strip_tags( $new_instance['max'] ) : '';
+		return $instance;
+	}
 } // Class wpb_widget ends here
+
 
 /*
 	The bulk of the functionality of the searching.
@@ -95,23 +189,44 @@ class SROSearch {
 		$ret = '<form name="sro_basic_search" method="GET" action="/publications/">';
 		$ret .= '<input type="hidden" name="action" value="sro_search_results">';
 		if ($type == 'basic') {
-			$ret .= '<label style="display:none" for="q">Enter search term</label>';
-			$ret .= '<input type="text" id="q" name="q"  placeholder="Enter keyword"/>';
+			$ret .= '<label class="hidden" for="q">Enter Search Term</label>';
+			$ret .= '<input type="text" id="q" name="q" placeholder="Enter Search Term" />';
 		}
 		if ($type == 'advanced') {
 			$ret .= "<h4>Advanced Search</h4>";
-			$ret .= '<label style="display:none" for="q">Enter search term</label>';
-			$ret .= '<input type="text" id="q" name="q" value="'.$query.'" style="width: 60%" placeholder="Enter keyword"/>';
+			$ret .= '<label class="hidden" for="q">Enter Search Term</label>';
+			$ret .= '<input type="text" id="q" name="q" value="'.$query.'" style="width: 60%" placeholder="Enter Search Term" />';
 		}
 		$ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
+		if ($type == 'advanced') {
+			$ret .= '<br><a id="advanced-link" onClick="sroToggleAdvancedSearch();">Advanced Search</a>';
+			$ret .= '<div id="advanced-search" style="display:none">';
+				$ret .= '<label for="limit">Limit to:</label>&nbsp;';
+				$ret .= '<select id="limit" name="limit">';
+					$ret .= '<option value="">(none)</option>';
+					$ret .= '<option value="author">Author</option>';
+					$ret .= '<option value="journal">Journal</option>';
+				$ret .= '</select>';
+				$ret .= '&nbsp;&nbsp;&nbsp;';
+				$ret .= '<label for="date">Limit by year:</label>&nbsp;';
+				$ret .= '<input id="date" name="date" maxlength="4" size="4">';
+				$ret .= '&nbsp;&nbsp;&nbsp;';
+				$ret .= '<label for="date">Museum/Department:</label>&nbsp;';
+				$ret .= '<select name="department" id="department">';
+					$ret .= '<option value="" selected="selected">All</option>';
+					$opts = _sro_get_departments();
+					foreach ($opts as $o) {
+						$ret .= '<option value="'.$o['id'].'">'.$o['name'].'</option>';
+					}
+				$ret .= '</select>';
+			$ret .= '</div>';
+		}
 		$ret .= '</form>';
 		return $ret;
 	}
 
 	function search_submit() {
 
-		wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
-		wp_enqueue_style('silibraries-sro');
 		wp_register_style('silibraries-sro-fa-reg', plugins_url('/css/font-awesome-regular.css', __FILE__));
 		wp_enqueue_style('silibraries-sro-fa-reg');
 		wp_register_style('silibraries-sro-fa-core', plugins_url('/css/font-awesome-core.css', __FILE__));
@@ -122,12 +237,14 @@ class SROSearch {
 		wp_enqueue_style('silibraries-sro-fa-solid');
 		wp_register_style('silibraries-sro-fa-solid', plugins_url('/css/font-awesome-solid.css', __FILE__));
 		wp_enqueue_style('silibraries-sro-fa-solid');
+		
+		wp_register_script('sro-js', plugins_url('/js/silibraries-sro.js', __FILE__));
+		wp_enqueue_script('sro-js');
+		
 		wp_register_script('altmetric', 'https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js');
 		wp_enqueue_script('altmetric');
 
-		print '<div id="sro">';
 		print $this->get_form('advanced', $_GET['q']);
-
 
 		if (isset($_GET['action']) && $_GET['action'] === 'sro_search_results') {
 
@@ -150,17 +267,29 @@ class SROSearch {
 
 				$options = get_option(
 					'sro_options',
-					array('server_url' => 'http://biblio.research.si.edu/api/search.cfm', 'query_extra' => '')
+					array('server_url' => 'http://research.si.edu/search/', 'query_extra' => '')
 				);
-
-				$results = file_get_contents($options['server_url'].'?search_term='.$_GET['q'].'&submit=Export+data&date=&format=JSON&Unit=All&count='.$perpage.'&pagenum='.$page);
+				
+				$results = $this->_perform_query(
+					$options['server_url'], 
+					array(
+						'search_term' => $_GET['q'],
+						'submit' => 'Export data',
+						'date' => '',
+						'format' => 'JSON', 
+						'unit' => 'All',
+						'count' => $perpage,
+						'pagenum' => $page,
+					)
+				);
 			}
 
 			// Print the output, includes all the components to make a full poage.
 
 			if ($results) {
+				print '<div id="sro">';
 				print "<h2>Search Results</h2>";				
-				$results = json_decode($results);
+
 				// Calculate the pages and records and stuff for pagination
 				$total_recs = $results->count;
 				$total_pages = floor($total_recs / $perpage);
@@ -181,32 +310,49 @@ class SROSearch {
 					print '<div id="pagination">'.$pagination.'</div>';
 				}
 
-				$c = 1;
-				print '<div id="results">';
-				foreach ($results->records as $r) {
-					$r = $r->reference;
-					if ($debug) {
-						print "<pre>";
-						print_r($r);
-						print "</pre>";
-					}
- 					print $this->format_entry($r);
-					$c++;
-					if ($c > $perpage) {
-						break;
-					}
-				}
-				print '</div>';
+				print $this->_format_results($results, $perpage, true);
 				
 				print '<div id="pagination">'.$pagination.'</div>';
+				print '</div>';
 			}
-
-			print '</div>';
-
 		}
 	}
+	
+	function _format_results($res, $perpage, $extras = false) {
+		$ret = '';
+		$c = 1;
+		$ret .= '<div id="results">';
+		foreach ($res->records as $r) {
+			$ret .= $this->_format_entry($r->reference, $extras);
+			$c++;
+			if ($c > $perpage) {
+				break;
+			}
+		}
+		$ret .= '</div>';
+		return $ret;
+	}	
+	
+	function _perform_query($url, $args) {
+		if (!preg_match('/\/$/', $url)) {
+			$url .= '/';
+		}		
+		if (isset($args['full_query'])) {
+			$query = $args['full_query'];
+		} else {
+			$query = [];
+			foreach ($args as $name => $val) {
+				$query[] = $name.'='.urlencode($val);
+			}
+			$query = implode('&', $query);
+		}
+		$results = file_get_contents($url.'?'.$query);
+		
+		$results = json_decode($results);
+		return $results;		
+	}
 
-	function format_entry($rec) {
+	function _format_entry($rec, $include_extras = false) {
 		$coins = array();
 		$coins[] = 'url_ver=Z39.88-2004';
 		$coins[] = 'ctx_ver=Z39.88-2004';
@@ -222,53 +368,54 @@ class SROSearch {
 		if (isset($rec->title)) {
 			$rec->title = preg_replace('/<[^>].*>/', '', $rec->title);
 		}
-
-		if ($rec->pubtype == 'article') {
-			// COinS DATA FOR ZOTERO IMPORT
-			if (isset($rec->doi)) {
-				$coins[] = 'rft_id=info%3Adoi%2F'.urlencode($rec->doi);
-			}
-			$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Ajournal';
-			$coins[] = 'rft.genre=article';
-			$coins[] = 'rft.atitle='.urlencode($rec->title);
-			$coins[] = 'rft.jtitle='.urlencode($rec->journal);
-			if (isset($rec->volume)) {
-				$coins[] = 'rft.volume='.urlencode($rec->volume);
-			}
-			if (isset($rec->issue)) {
-				$coins[] = 'rft.issue='.urlencode($rec->issue);
-			}
-			$coins[] = 'rft.stitle='.urlencode($rec->journal);
-			$coins[] = 'rft.pages='.urlencode($rec->pages);
-			if (isset($rec->pages)) {
-				if (strpos($rec->pages, '-')) {
-					$p = explode('-', $rec->pages);
-					$coins[] = 'rft.spage='.$p[0];
-					$coins[] = 'rft.epage='.$p[1];
-				} else {
-					$coins[] = 'rft.spage='.$rec->pages;
+		if ($include_extras) {
+			if ($rec->pubtype == 'article') {
+				// COinS DATA FOR ZOTERO IMPORT
+				if (isset($rec->doi)) {
+					$coins[] = 'rft_id=info%3Adoi%2F'.urlencode($rec->doi);
 				}
+				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Ajournal';
+				$coins[] = 'rft.genre=article';
+				$coins[] = 'rft.atitle='.urlencode($rec->title);
+				$coins[] = 'rft.jtitle='.urlencode($rec->journal);
+				if (isset($rec->volume)) {
+					$coins[] = 'rft.volume='.urlencode($rec->volume);
+				}
+				if (isset($rec->issue)) {
+					$coins[] = 'rft.issue='.urlencode($rec->issue);
+				}
+				$coins[] = 'rft.stitle='.urlencode($rec->journal);
+				$coins[] = 'rft.pages='.urlencode($rec->pages);
+				if (isset($rec->pages)) {
+					if (strpos($rec->pages, '-')) {
+						$p = explode('-', $rec->pages);
+						$coins[] = 'rft.spage='.$p[0];
+						$coins[] = 'rft.epage='.$p[1];
+					} else {
+						$coins[] = 'rft.spage='.$rec->pages;
+					}
+				}
+				if (isset($rec->issn)) {
+					$coins[] = 'rft.issn='.urlencode($rec->issn);
+				}
+			} elseif ($rec->pubtype == 'chapter') {
+				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
+				$coins[] = 'rft.genre=bookitem';
+				$coins[] = 'rft.atitle='.urlencode($rec->title);
+				$coins[] = 'rft.btitle='.$rec->book_title;
+				$coins[] = 'rft.publisher='.urlencode($rec->publisher);
+				$coins[] = 'rft.pages='.urlencode($rec->pages);
+			} elseif ($rec->pubtype == 'book') {
+				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
+				$coins[] = 'rft.genre=book';
+				$coins[] = 'rft.btitle='.urlencode($rec->title);
+				$coins[] = 'rft.tpages='.urlencode($rec->pages);
 			}
-			if (isset($rec->issn)) {
-				$coins[] = 'rft.issn='.urlencode($rec->issn);
-			}
-		} elseif ($rec->pubtype == 'chapter') {
-			$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
-			$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
-			$coins[] = 'rft.genre=bookitem';
-			$coins[] = 'rft.atitle='.urlencode($rec->title);
-			$coins[] = 'rft.btitle='.$rec->book_title;
-			$coins[] = 'rft.publisher='.urlencode($rec->publisher);
-			$coins[] = 'rft.pages='.urlencode($rec->pages);
-		} elseif ($rec->pubtype == 'book') {
-			$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
-			$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
-			$coins[] = 'rft.genre=book';
-			$coins[] = 'rft.btitle='.urlencode($rec->title);
-			$coins[] = 'rft.tpages='.urlencode($rec->pages);
-		}
-		// $ret .= '<span class="Z3988" title="'.implode('&amp;',$coins).'"></span>';
-
+			// $ret .= '<span class="Z3988" title="'.implode('&amp;',$coins).'"></span>';
+		} 
+		
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		if ($rec->pubtype == 'article') { // and (k1 does not contain 'Book review')
@@ -294,9 +441,11 @@ class SROSearch {
 				$ret .= '</div>';
 			$ret .= '</div>';
 
-			$ret .= '<div class="result fa-file-alt">';
-				if (isset($rec->doi)) {
-					$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+			$ret .= '<div class="result fa-file-alt" title="Article">';
+				if ($include_extras) {
+					if (isset($rec->doi)) {
+						$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+					}
 				}
 				// #a1#
 				$ret .= $rec->author_display;
@@ -337,10 +486,12 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'ejournal_article') {
-			if (isset($rec->doi)) {
-				$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+			if ($include_extras) {
+				if (isset($rec->doi)) {
+					$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+				}
 			}
-			$ret .= '<div class="result fa-file-pdf">';
+			$ret .= '<div class="result fa-file-pdf" title="E-Journal Article">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -372,7 +523,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'chapter') {
 
-			$ret .= '<div class="result fa-bookmark">';
+			$ret .= '<div class="result fa-bookmark" title="Chapter">';
 				$ret .= '<div class="schema-dot-org">';
 					$ret .= '<div vocab="http://schema.org/" typeof="Chapter">';
 						$ret .= '<span itemprop="name" itemtype="http://schema.org/thing">'.$rec->title.'</span>';
@@ -400,8 +551,10 @@ class SROSearch {
 				$ret .= '</div>';
 				# BOOK CHAPTER DISPLAY
 
-				if (isset($rec->doi)) {
-					$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+				if ($include_extras) {
+					if (isset($rec->doi)) {
+						$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+					}
 				}
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
@@ -461,7 +614,7 @@ class SROSearch {
 
 			# BOOK DISPLAY
 
-			$ret .= '<div class="result fa-book">';
+			$ret .= '<div class="result fa-book" title="Book">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -501,7 +654,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'book_edited') {
-			$ret .= '<div class="result fa-book">';
+			$ret .= '<div class="result fa-book" title="Book, Edited">';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= '<em><a href="'.$rec->link.'">'.$rec->title.'</a></em>';
 				} else {
@@ -540,7 +693,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'thesis') {
-			$ret .= '<div class="result fa-file-edit">';
+			$ret .= '<div class="result fa-file-edit" title="Thesis">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -568,7 +721,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'web_page') {
-			$ret .= '<div class="result fa-globe">';
+			$ret .= '<div class="result fa-globe" title="Web Page">';
 
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
@@ -597,7 +750,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'magazine_article') {
-			$ret .= '<div class="result fa-file">';
+			$ret .= '<div class="result fa-file" title="Magazine Article">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -625,7 +778,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'video_dvd') {
-			$ret .= '<div class="result fa-video">';
+			$ret .= '<div class="result fa-video" title="Video/DVD">';
 				if (preg_match('/http/', $rec->link)) {
 					$ret .= '<em><a href="'.$rec->link.'">'.$rec->title.'</a></em>';
 				} else {
@@ -648,7 +801,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'audio') {
-			$ret .= '<div class="result fa-volume-up">';
+			$ret .= '<div class="result fa-volume-up" title="Audio Recording">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -674,7 +827,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'report') {
-			$ret .= '<div class="result fa-list-alt">';
+			$ret .= '<div class="result fa-list-alt" title="Report">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -705,7 +858,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'newspaper_article') {
-			$ret .= '<div class="result fa-newspaper">';
+			$ret .= '<div class="result fa-newspaper" title="Newspaper Article">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -728,7 +881,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'motion_picture') {
-			$ret .= '<div class="result fa-film">';
+			$ret .= '<div class="result fa-film" title="Motion Picture">';
 
 				$ret .= $rec->author_display;
 				if (preg_match('/http/', $rec->link)) {
@@ -752,7 +905,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'monograph') {
-			$ret .= '<div class="result fa-book">';
+			$ret .= '<div class="result fa-book" title="Monograph">';
 
 				if (isset($rec->author_display)) {
 					$ret .= $rec->author_display;
@@ -788,7 +941,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'map') {
-			$ret .= '<div class="result fa-map">';
+			$ret .= '<div class="result fa-map" title="Map">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -815,7 +968,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'artwork') {
-			$ret .= '<div class="result fa-image">';
+			$ret .= '<div class="result fa-image" title="Artwork">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -826,7 +979,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'abstract') {
-			$ret .= '<div class="result fa-align-justify">';
+			$ret .= '<div class="result fa-align-justify" title="Abstract">';
 				$ret .= $rec->author_display;
 				$ret .= ' <span class="date_highlight" class="date_display">'.$rec->date.'</span>.';
 				$ret .= '[Abstract:] "'.$rec->title.'".';
@@ -844,7 +997,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'forum_blog') {
-			$ret .= '<div class="result fa-comments">';
+			$ret .= '<div class="result fa-comments" title="Forum/Blog Post">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -864,7 +1017,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'generic') {
-			$ret .= '<div class="result fa-rectangle-portrait">';
+			$ret .= '<div class="result fa-rectangle-portrait" title="Generic">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -884,7 +1037,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		// ------------------------------------------------------------------------------
 		} else {
-			$ret .= '<div class="result fa-question-circle">';
+			$ret .= '<div class="result fa-question-circle" title="Other">';
 				$ret .= $rec->author_display;
 				if (!preg_match('/\.$/', $rec->author_display)) {
 					$ret .= '.';
@@ -987,10 +1140,62 @@ function _sro_delete_page() {
 	wp_delete_post($post->ID);	
 }
 
+function _sro_get_departments() {
+	return array(
+		array('id' => '690000', name => 'Anacostia Community Museum'), 
+		array('id' => '480000', name => 'Archives of American Art'), 
+		array('id' => '710000', name => 'Asian Pacific American Center'), 
+		array('id' => '510000', name => 'Center for Folklife and Cultural Heritage'), 
+		array('id' => '580000', name => 'Cooper-Hewitt National Design Museum'), 
+		array('id' => '540000', name => 'Freer-Sackler Galleries'), 
+		array('id' => '560000', name => 'Hirshhorn Museum and Sculpture Garden'), 
+		array('id' => '640000', name => 'Museum Conservation Institute'), 
+		array('id' => '380000', name => 'National Air and Space Museum'), 
+		array('id' => '382010', name => 'NASM-Aeronautics'), 
+		array('id' => '382020', name => 'NASM-Space History'), 
+		array('id' => '382050', name => 'NASM-CEPS'), 
+		array('id' => '680000', name => 'National Museum of African American History and Culture'), 
+		array('id' => '570000', name => 'National Museum of African Art'), 
+		array('id' => '550000', name => 'National Museum of American History'), 
+		array('id' => '330000', name => 'NMNH'), 
+		array('id' => '331040', name => 'NMNH Encyclopedia of Life'), 
+		array('id' => '332010', name => 'NH-Mineral Science'), 
+		array('id' => '332020', name => 'NH-Anthropology'), 
+		array('id' => '332031', name => 'NH-Invertebrate Zoology'), 
+		array('id' => '332032', name => 'NH-Vertebrate Zoology'), 
+		array('id' => '332033', name => 'NH-Botany'), 
+		array('id' => '332034', name => 'NH-Entomology'), 
+		array('id' => '332040', name => 'NH-Paleobiology'), 
+		array('id' => '332050', name => 'NH-Smithsonian Marine Station'), 
+		array('id' => '500000', name => 'National Museum of the American Indian'), 
+		array('id' => '520000', name => 'National Portrait Gallery'), 
+		array('id' => '301000', name => 'National Postal Museum'), 
+		array('id' => '350000', name => 'National Zoological Park'), 
+		array('id' => '770000', name => 'Office of Policy and Analysis'), 
+		array('id' => '250001', name => 'Office of the Under Secretary for History, Art &amp; Culture'), 
+		array('id' => '110000', name => 'Secretary\'s Cabinet'), 
+		array('id' => '100000', name => 'SI-Other'), 
+		array('id' => '530000', name => 'Smithsonian American Art Museum'), 
+		array('id' => '404000', name => 'Smithsonian Astrophysical Observatory'), 
+		array('id' => '390000', name => 'Smithsonian Environmental Research Center'), 
+		array('id' => '733400', name => 'Smithsonian Gardens'), 
+		array('id' => '170000', name => 'Smithsonian Institution Archives'), 
+		array('id' => '360000', name => 'Smithsonian Latino Center'), 
+		array('id' => '630000', name => 'Smithsonian Institution Libraries'), 
+		array('id' => '340000', name => 'Smithsonian Tropical Research Institute'), 
+		array('id' => '250000', name => 'Arts and Humanities'), 
+		array('id' => '590000', name => 'Science'), 
+		array('id' => '941000', name => 'Smithsonian Institution Scholarly Press'), 
+		array('id' => '960000', name => 'DUSCIS')
+	);
+}
 
+wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
+wp_enqueue_style('silibraries-sro');
 
 // Register our widget with an anonymous function.
 add_action( 'widgets_init', function() { register_widget('SROSearchWidget');});
+add_action( 'widgets_init', function() { register_widget('SROFixedSearchWidget');});
 
 // Create our object and make magic happen.
 $wpSROSearch = new SROSearch();
