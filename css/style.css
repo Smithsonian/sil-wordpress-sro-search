@@ -1,3 +1,6 @@
+#sro {
+	margin-top: 20px; 
+}
 #sro .result {
 	padding: 15px 0;
 	text-indent: -22px;
@@ -40,4 +43,20 @@
 
 #sro #pagination .current {
 	background: #ccc;
+}
+
+#advanced-search {
+	background-color: #eee;
+	padding: 10px;
+}
+#advanced-search .criteria {
+	margin: 6px 0;
+}
+#advanced-search .export {
+	border-top: 1px solid #AAA;
+	padding-top: 6px;
+}
+
+#advanced-search #department {
+	width: 20em;
 }
