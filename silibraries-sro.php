@@ -14,8 +14,8 @@ require_once(ABSPATH . 'wp-admin/includes/template.php');
 require_once(ABSPATH .'wp-content/plugins/silibraries-sro/class.PaginationLinks.php');
 require_once(ABSPATH .'wp-content/plugins/silibraries-sro/admin.php');
 
-/* Create the widget that will allow us to add the search form to the sidebar
- * 
+/* 
+ * Create the widget that will allow us to add the search form to the sidebar
  */
 class SROSearchWidget extends WP_Widget {
 
@@ -33,8 +33,9 @@ class SROSearchWidget extends WP_Widget {
 		);
 	}
 
-	// Creating widget front-end
-
+  /* 
+   * Creating widget front-end
+   */ 
 	public function widget( $args, $instance ) {
 		global $wpSROSearch;
 
@@ -51,7 +52,9 @@ class SROSearchWidget extends WP_Widget {
 		print $args['after_widget'];
 	}
 
-	// Widget Backend
+  /* 
+   * Widget Backend
+   */ 
 	public function form( $instance ) {
 		if ( isset( $instance[ 'title' ] ) ) {
 			$title = $instance[ 'title' ];
@@ -65,7 +68,9 @@ class SROSearchWidget extends WP_Widget {
 		echo '</p>';
 	}
 
-	// Updating widget replacing old instances with new
+  /* 
+   * Updating widget replacing old instances with new
+   */ 
 	public function update( $new_instance, $old_instance ) {
 		$instance = array();
 		$instance['title'] = ( ! empty( $new_instance['title'] ) ) ? strip_tags( $new_instance['title'] ) : '';
@@ -73,10 +78,12 @@ class SROSearchWidget extends WP_Widget {
 	}
 } 
 
-/* Create the widget that will allow us to add the 
- * search results to a user's page. (I think)
+/* 
+ * Create the widget that will allow us to add a predefined search results
+ * to a page. The widget will collect the search parameters that are 
+ * sent directly to the search API.
  */
-/* class SROFixedSearchWidget extends WP_Widget {
+class SROFixedSearchWidget extends WP_Widget {
 
 	function __construct() {
 		parent::__construct(
@@ -92,7 +99,9 @@ class SROSearchWidget extends WP_Widget {
 		);
 	}
 
-	// Creating widget front-end
+  /* 
+   * Creating widget front-end
+   */ 
 	public function widget( $args, $instance ) {
 		global $wpSROSearch;
 
@@ -110,12 +119,12 @@ class SROSearchWidget extends WP_Widget {
 			array('server_url' => 'http://research.si.edu/search/', 'query_extra' => '')
 		);
 
-		$json = $wpSROSearch->_perform_query(
+		$json = $wpSROSearch->_execute_query(
 			$options['server_url'], 
 			array('full_query' => $instance['search_query'])
 		);
 
-		$html .= $wpSROSearch->_format_results(
+		$html .= $wpSROSearch->_format_html_results(
 			$json, $instance['max']
 		);
 
@@ -126,7 +135,9 @@ class SROSearchWidget extends WP_Widget {
 		print $args['after_widget'];
 	}
 
-	// Widget Backend
+  /* 
+   * Widget Backend
+   */ 
 	public function form( $instance ) {
 		if ( isset( $instance[ 'title' ] ) ) {
 			$title = $instance[ 'title' ];
@@ -158,7 +169,9 @@ class SROSearchWidget extends WP_Widget {
 		echo '</p>';
 	}
 
-	// Updating widget replacing old instances with new
+  /* 
+   * Updating widget replacing old instances with new
+   */ 
 	public function update( $new_instance, $old_instance ) {
 		$instance = array();
 		$instance['title'] = ( ! empty( $new_instance['title'] ) ) ? strip_tags( $new_instance['title'] ) : '';
@@ -166,22 +179,31 @@ class SROSearchWidget extends WP_Widget {
 		$instance['max'] = ( ! empty( $new_instance['max'] ) ) ? strip_tags( $new_instance['max'] ) : '';
 		return $instance;
 	}
-} // Class wpb_widget ends here
-*/ 
+}
 
 /* The bulk of the functionality of the searching.
  * This contains the logic to process and populate the search results
  * as well as the advanced search and export.
  */
 class SROSearch {
+
+  /* 
+   * Initialize and register the shortcode that handles the display of results.
+   */ 
 	public function __construct() {
 		if(is_admin()) {
 			$my_settings_page = new SROSettingsPage();
 		}
-		// add_action('init', array($this, 'search_submit'));
-		add_shortcode('sro-search-results', array($this, 'search_submit'));
+
+		add_shortcode('sro-search-results', array($this, 'display_results'));
 	}
 
+  /* 
+   * Builds a search form to display on the web page. 
+   *
+   * This builds the basic or advanced form, fills it in and returns it.
+   * this does not print the form to the page.
+   */ 
 	public function get_form($type = 'basic', $query = '') {
 		$ret = '<form name="sro_basic_search" method="GET" action="/publications/">';
 		$ret .= '<input type="hidden" name="action" value="sro_search_results">';
@@ -199,7 +221,11 @@ class SROSearch {
 		if ($type == 'advanced') {
 			$ret .= '<br><a id="advanced-link" onClick="sroToggleAdvancedSearch();">Advanced Search</a>';
 			$hide = true;
-			if ($_GET['limit'] || $_GET['date'] || $_GET['department'] || $_GET['sort'] != 'published' || $_GET['send_to'] != 'screen'){
+			if (!empty($_GET['limit']) || 
+			    !empty($_GET['date']) || 
+			    !empty($_GET['dept']) || 
+			    (!empty($_GET['sort']) && $_GET['sort'] != 'published') || 
+			    (!empty($_GET['send_to']) && $_GET['send_to'] != 'screen')){
 				$hide = false;
 			}
 			$ret .= '<div id="advanced-search"'.($hide ? ' style="display:none"' : '').'>';
@@ -217,11 +243,11 @@ class SROSearch {
 					$ret .= '<input id="date" name="date" maxlength="4" size="4" value="'.esc_attr($_GET['date']).'">';
 					$ret .= '&nbsp;&nbsp;&nbsp; ';
 					$ret .= '<label for="date">Limit&nbsp;to&nbsp;Museum&nbsp;or&nbsp;Department:</label>&nbsp;';
-					$ret .= '<select name="department" id="department">';
+					$ret .= '<select name="dept" id="dept">';
 						$ret .= '<option value="" selected="selected">All</option>';
-						$opts = _sro_get_departments();
+						$opts = $this->_sro_get_departments();
 						foreach ($opts as $o) {
-							$ret .= '<option value="'.$o['id'].'"'.($_GET['department'] == $o['id'] ? ' selected' : '').'>'.$o['name'].'</option>';
+							$ret .= '<option value="'.$o['id'].'"'.($_GET['dept'] == $o['id'] ? ' selected' : '').'>'.$o['name'].'</option>';
 						}
 					$ret .= '</select>';
 				$ret .= '</div>';
@@ -254,8 +280,100 @@ class SROSearch {
 		$ret .= '</form>';
 		return $ret;
 	}
+	
+	/* 
+	 * Santize and standardize the parameters we got from the URL. 
+	 * 
+	 * This is called by everyone and should be sufficient to prevent 
+	 * users from being naughty.
+	 *
+	 * If we change any values of parameters then we should probably 
+	 * update the arrays here, too.
+	 */
+	function _clean_params() {
+		$options = get_option(
+			'sro_options',
+			array('server_url' => 'http://research.si.edu/search/', 'query_extra' => '')
+		);
 
-	function search_submit() {
+		$params = array(
+			'search_term' => null,
+			'limit' => null,
+			'year' => null,
+			'dept' => null,
+			'sort' => 'published',
+			'send_to' => 'screen',
+			'export_format' => 'json',
+			'perpage' => 20,
+			'page' => 1,
+			'server_url' => $options['server_url'],
+			'query_extra' => $options['query_extra'],
+		);
+
+		if (isset($_GET['q'])) {
+			$params['search_term'] = trim($_GET['q']);
+		}		
+		
+		if (isset($_GET['limit']) && $_GET['limit']) {
+			if (in_array($_GET['limit'], array('author', 'auhtor_id', 'journal'))) {
+				$params['limit'] = $_GET['limit']; // It has to be one of these values
+			}
+		}
+		
+		if (isset($_GET['date']) && $_GET['date']) {
+			$params['year'] = (int)$_GET['date']; // Cast to int to sanitize
+		}
+
+		if (isset($_GET['dept']) && $_GET['dept']) {
+			$opts = $this->_sro_get_departments();
+			foreach ($opts as $o) {
+				if ($_GET['dept'] == $o['id']) {
+					$params['dept'] = $o['id'];
+					break;
+				}
+			}
+		}
+
+		if (isset($_GET['sort']) && $_GET['sort']) {
+			if (in_array($_GET['sort'], array('published', 'author', 'journal', 'added'))) {
+				$params['sort'] = $_GET['sort']; // It has to be one of these values
+			}
+		}
+
+		if (isset($_GET['perpage']) && $_GET['perpage']) {
+			$params['perpage'] = (int)$_GET['perpage']; // Cast to int to sanitize
+		}
+
+		if (isset($_GET['pg']) && $_GET['pg']) {
+			$params['page'] = (int)$_GET['pg']; // Cast to int to sanitize
+		}
+
+		if (isset($_GET['send_to']) && $_GET['send_to']) {
+			if (in_array($_GET['send_to'], array('screen', 'download'))) {
+				$params['send_to'] = $_GET['send_to']; // It has to be one of these values
+			}
+		}
+		if ($params['send_to'] == 'download') {
+			$params['page'] = 'all';
+			$params['perpage'] = 'all';			
+		}
+
+		if (isset($_GET['export_format']) && $_GET['export_format']) {
+			if (in_array($_GET['export_format'], array('json', 'csv', 'ris', 'text'))) {
+				$params['export_format'] = $_GET['export_format']; // It has to be one of these values
+			}
+		}
+		
+		return $params;
+	}
+
+  /*
+   *  Print the results to the browser page 
+   */
+	function display_results() {
+		$params = $this->_clean_params();
+		
+		$results = $this->_do_search($params);
 
 		wp_register_style('silibraries-sro-fa-reg', plugins_url('/css/font-awesome-regular.css', __FILE__));
 		wp_enqueue_style('silibraries-sro-fa-reg');
@@ -276,169 +394,109 @@ class SROSearch {
 
 		print $this->get_form('advanced', $_GET['q']);
 
-		if (isset($_GET['action']) && $_GET['action'] === 'sro_search_results') {
-
-			// Do the search at SRO in JSON
-
-			$results = null;
-			$limit = '';
-			if (isset($_GET['limit']) && $_GET['limit']) {
-				if (in_array($_GET['limit'], array('author', 'auhtor_id', 'journal'))) {
-					$limit = $_GET['limit']; // It has to be one of these values
-				}
-			}
-			
-			$year = '';
-			if (isset($_GET['date']) && $_GET['date']) {
-				$year = (int)$_GET['date']; // Cast to int to sanitize
-			}
-
-			$dept = '';
-			if (isset($_GET['dept']) && $_GET['dept']) {
-				$opts = _sro_get_departments();
-				if (array_key_exists($_GET['dept'], $opts)) {
-					$dept = $_GET['dept']; // It has to be one of these departments
-				}
-			}
-
-			$sort = 'published';
-			if (isset($_GET['sort']) && $_GET['sort']) {
-				if (in_array($_GET['sort'], array('published', 'author', 'journal', 'added'))) {
-					$sort = $_GET['sort']; // It has to be one of these values
-				}
-			}
-
-			$send_to = 'screen';
-			if (isset($_GET['send_to']) && $_GET['send_to']) {
-				if (in_array($_GET['send_to'], array('screen', 'download'))) {
-					$send_to = $_GET['send_to']; // It has to be one of these values
-				}
-			}
-
-			$export_format = 'json';
-			if (isset($_GET['export_format']) && $_GET['export_format']) {
-				if (in_array($_GET['export_format'], array('json', 'csv', 'ris', 'text'))) {
-					$export_format = $_GET['export_format']; // It has to be one of these values
-				}
-			}
-			
-			$perpage = 20;
-			if (isset($_GET['perpage']) && $_GET['perpage']) {
-				$perpage = (int)$_GET['perpage']; // Cast to int to sanitize
-			}
-
-			$page = 1;
-			if (isset($_GET['pg']) && $_GET['pg']) {
-				$page = (int)$_GET['pg']; // Cast to int to sanitize
-			}
-			if ($send_to == 'download') {
-				$perpage = 'all';
-				$page = 'all';
-			}
-
-			if (isset($_GET['q']) && $_GET['q']) {
-
-				$options = get_option(
-					'sro_options',
-					array('server_url' => 'http://research.si.edu/search/', 'query_extra' => '')
-				);
-
-				$query = array(
-					'search' => trim($_GET['q']),
-					'limit' => $limit,
-					'year' => $year,
-					'dept' => $dept,
-					'count' => $perpage,
-					'pagenum' => $page,
-					'sort' => $sort
-				);				
-				$results = $this->_perform_query($options['server_url'], $query);
-			}
+		if ($results) {
 
 			// Print the output, includes all the components to make a full poage.
-			if ($send_to == 'screen') {
-				if ($results) {
-					print '<div id="sro">';
-					print "<h2>Search Results</h2>";				
-	
-					// Calculate the pages and records and stuff for pagination
-					$total_recs = $results->count;
-					$total_pages = floor($total_recs / $perpage);
-					if ($total_recs % $perpage != 0) {
-						$total_pages++;
-					}				
-					$min_this_page = (($page-1) * $perpage)+1;
-					$max_this_page = min(array($page * $perpage, $total_recs));
-					$remaining_records = $total_recs - $max_this_page;
-					if ($total_recs == 0) {
-						print '<div id="summary">No results were found.</div>';				
-					} else {
-						print '<div id="summary">Showing '.$min_this_page."-".$max_this_page.' of about '.$total_recs.' results.</div>';
-					}
-	
-					if ($results->count > $perpage) {
-						$pagination =  PaginationLinks::create(
-							$page, $total_pages, 2, 
-							'<a class="page" href="?action=sro_search_results&q='.urlencode($_GET['q']).'&pg=%d&perpage='.$perpage.'">%d</a>',
-							'<span class="current">%d</span>'
-						);
-						print '<div id="pagination">'.$pagination.'</div>';
-					}
-	
-					print $this->_format_html_results($results, $perpage, true);
-					
-					print '<div id="pagination">'.$pagination.'</div>';
-					print '</div>';
-				}			
+			print '<div id="sro">';
+			print "<h2>Search Results</h2>";				
+
+			// Calculate the pages and records and stuff for pagination
+			$total_recs = $results->count;
+			$total_pages = floor($total_recs / $params['perpage']);
+			if ($total_recs % $params['perpage'] != 0) {
+				$total_pages++;
+			}				
+			$min_this_page = (($params['page']-1) * $params['perpage'])+1;
+			$max_this_page = min(array($params['page'] * $params['perpage'], $total_recs));
+			$remaining_records = $total_recs - $max_this_page;
+			if ($total_recs == 0) {
+				print '<div id="summary">No results were found.</div>';				
+			} else {
+				print '<div id="summary">Showing '.$min_this_page."-".$max_this_page.' of about '.$total_recs.' results.</div>';
 			}
+
+			if ($results->count > $params['perpage']) {
+				$pagination =  PaginationLinks::create(
+					$params['page'], $total_pages, 2, 
+					'<a class="page" href="?action=sro_search_results&q='.urlencode($_GET['q']).'&pg=%d&perpage='.$params['perpage'].'&sort='.$params['sort'].'&limit='.$params['limit'].'&date='.$params['year'].'&dept='.$params['dept'].'">%d</a>',
+					'<span class="current">%d</span>'
+				);
+				print '<div id="pagination">'.$pagination.'</div>';
+			}
+
+			print $this->_format_html_results($results, $params['perpage'], true);
 			
-			if ($send_to == 'download') {
-				$output = null;
-				$filename = null;
-				header('Content-Description: File Transfer');
-				if ($export_format == 'ris') {
-					$output = $this->_format_ris_results($results);
-					$filename = 'search_results.ris';
-					header('Content-Type: text/plain');
-
-				} elseif ($export_format == 'csv') {
-					$output = trim($this->_format_csv_results($results));
-					$filename = 'search_results.csv';
-					header('Content-Type: text/csv');
-
-				} elseif ($export_format == 'text') {
-					$output = $this->_format_text_results($results);
-					$filename = 'search_results.txt';
-					header('Content-Type: text/plain');
-
-				} else { // ($export_format == 'json') {
-					$output = json_encode($results, JSON_PRETTY_PRINT);
-					$filename = 'search_results.json';
-					header('Content-Type: application/json');
-				}
-
-				if ($output && $filename) {
-					header('Content-Transfer-Encoding: binary');
-					header('Expires: 0');
-					header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
-					header('Pragma: public');
-					header('Content-Disposition: attachment; filename="'.$filename.'"');
-					header('Content-Length: ' . strlen($output));
-					ob_clean();
-					flush();
-					print($output);
-					exit();
-				} else {
-					print '<div class="error">Error exporting data. Check the criteria and try again.</div>';
-				}
-			}
+			print '<div id="pagination">'.$pagination.'</div>';
+			print '</div>';
 		}
 	}
 	
+	/* 
+	 * Export the results to a file and make the browser download it. 
+	 * This is called by the api hook for 'template_redirect' because we need to
+	 * export this before any output is sent to the browser. The API hook short-circuits
+	 * that process.
+	 */
+	function download_results() {
+
+		$params = $this->_clean_params();
+
+		if (is_page('publications') && $params['send_to'] == 'download') {
+
+			$results = $this->_do_search($params);
+
+			$output = null;
+			$filename = null;
+			header('Content-Description: File Transfer');
+			if ($params['export_format'] == 'ris') {
+				$output = $this->_format_ris_results($results);
+				$filename = 'search_results.ris';
+				$header = 'Content-Type: text/plain';
+
+			} elseif ($params['export_format'] == 'csv') {
+				$output = trim($this->_format_csv_results($results));
+				$filename = 'search_results.csv';
+				$header = 'Content-Type: text/csv';
+
+			} elseif ($params['export_format'] == 'text') {
+				$output = $this->_format_text_results($results);
+				$filename = 'search_results.txt';
+				$header = 'Content-Type: text/plain';
+
+			} else { // ($$params['export_format'] == 'json') {
+				// There is no JSON format function. We just send back what we got from the API.
+				$output = json_encode($results, JSON_PRETTY_PRINT);
+				$filename = 'search_results.json';
+				$header = 'Content-Type: application/json';
+			}
+
+			if ($output && $filename) {
+				header($header);
+				header('Content-Transfer-Encoding: binary');
+				header('Expires: 0');
+				header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
+				header('Pragma: public');
+				header('Content-Disposition: attachment; filename="'.$filename.'"');
+				header('Content-Length: ' . strlen($output));
+				ob_clean();
+				flush();
+				print($output);
+				exit();
+			} else {
+				print '<div class="error">Error exporting data. Check the criteria and try again.</div>';
+			}
+			exit();
+		}
+	}
+	
+  /* 
+   * Format all results for exporting to a RIS file
+   */ 
 	function _format_ris_results($res) {
 		$output = array();
 		foreach ($res->records as $r) {
-			if ($r->pubtype == 'article' && $r->journal) {
+			$r = $r->reference;
+			if ($r->pubtype == 'article' && $r->pubtype == 'journal') {
 				$output[] = 'TY  - JOUR';
 				$first = true;
 				foreach (_unique_authors($r->authors) as $a) {
@@ -554,6 +612,9 @@ class SROSearch {
 		return implode("\r\n",$output);
 	}
 
+  /* 
+   * Format all results for exporting to a CSV file
+   */ 
 	function _format_csv_results($res) {
 		$output = '';
 		$header = array('pubtype', 'title', 'authors', 'editors', 'journal', 'book_title', 'series', 'smithsonian_author_id', 
@@ -611,6 +672,11 @@ class SROSearch {
 		return $output;
 	}
 
+  /* 
+   * Format all results for exporting to a text file.
+   *
+   * This is not currently used.
+   */ 
 	function _format_text_results($res) {
 		// Start with the html
 		$output = $this->_format_html_results($res, 1000000, false);
@@ -620,6 +686,9 @@ class SROSearch {
 		return $output;
 	}
 	
+  /* 
+   * Formall all results for displaying on a webpage
+   */ 
 	function _format_html_results($res, $perpage, $extras = false) {
 		$ret = '';
 		$c = 1;
@@ -635,6 +704,15 @@ class SROSearch {
 		return $ret;
 	}	
 	
+  /* 
+   * Format one record while printing to a webpage
+   * 
+   * $include_extras will print COINS data and Altmetric 
+   * Badges onto the page.
+   *
+   * This just encapsultates a lot of code that would otherwise
+   * make the _format_html_results() messier.
+   */ 
 	function _format_html_entry($rec, $include_extras = false) {
 		$coins = array();
 		$coins[] = 'url_ver=Z39.88-2004';
@@ -1364,7 +1442,14 @@ class SROSearch {
 		return $ret;
 	}
 
-	function _perform_query($url, $args) {
+  /* 
+   * Send the query to the Search API and decode the results. 
+   * 
+   * This is not combined with _do_search because there is a case
+   * where we can add the exact parameters for a hardcoded query
+   * to the search server, which goes directly to this function.
+   */ 
+	function _execute_query($url, $args) {
 		if (!preg_match('/\/$/', $url)) {
 			$url .= '/';
 		}		
@@ -1377,13 +1462,90 @@ class SROSearch {
 			}
 			$query = implode('&', $query);
 		}
-		$results = file_get_contents($url.'?'.$query);
-// 		print $url.'?'.$query.'<br>';
-		
+		$results = file_get_contents($url.'?'.$query);		
 		$results = json_decode($results);
 		return $results;		
 	}
 
+  /* 
+   * Build the search query to send it to the search API.
+   */ 
+	function _do_search($params) {
+		if (isset($_GET['action']) && $_GET['action'] === 'sro_search_results') {
+			// Do the search at SRO in JSON
+
+			$results = null;
+			
+			if (!empty($params['search_term']) || !empty($params['dept'])) {
+				$query = array(
+					'search'  => $params['search_term'],
+					'limit'   => $params['limit'],
+					'year'    => $params['year'],
+					'dept'    => $params['dept'],
+					'count'   => $params['perpage'],
+					'pagenum' => $params['page'],
+					'sort'    => $params['sort']
+				);
+				$results = $this->_execute_query($params['server_url'], $query);
+				return $results;
+			}
+		}
+		return null;
+	}
+	
+	/* Return a list of SI Departments. 
+	 * This should really be an API call to somewhere else 
+	 */
+	function _sro_get_departments() {
+		// TODO: This should really be an API Call
+		return array(
+			array('id' => '690000', name => 'Anacostia Community Museum'), 
+			array('id' => '480000', name => 'Archives of American Art'), 
+			array('id' => '710000', name => 'Asian Pacific American Center'), 
+			array('id' => '510000', name => 'Center for Folklife and Cultural Heritage'), 
+			array('id' => '580000', name => 'Cooper-Hewitt National Design Museum'), 
+			array('id' => '540000', name => 'Freer-Sackler Galleries'), 
+			array('id' => '560000', name => 'Hirshhorn Museum and Sculpture Garden'), 
+			array('id' => '640000', name => 'Museum Conservation Institute'), 
+			array('id' => '380000', name => 'National Air and Space Museum'), 
+			array('id' => '382010', name => 'NASM-Aeronautics'), 
+			array('id' => '382020', name => 'NASM-Space History'), 
+			array('id' => '382050', name => 'NASM-CEPS'), 
+			array('id' => '680000', name => 'National Museum of African American History and Culture'), 
+			array('id' => '570000', name => 'National Museum of African Art'), 
+			array('id' => '550000', name => 'National Museum of American History'), 
+			array('id' => '330000', name => 'NMNH'), 
+			array('id' => '331040', name => 'NMNH Encyclopedia of Life'), 
+			array('id' => '332010', name => 'NH-Mineral Science'), 
+			array('id' => '332020', name => 'NH-Anthropology'), 
+			array('id' => '332031', name => 'NH-Invertebrate Zoology'), 
+			array('id' => '332032', name => 'NH-Vertebrate Zoology'), 
+			array('id' => '332033', name => 'NH-Botany'), 
+			array('id' => '332034', name => 'NH-Entomology'), 
+			array('id' => '332040', name => 'NH-Paleobiology'), 
+			array('id' => '332050', name => 'NH-Smithsonian Marine Station'), 
+			array('id' => '500000', name => 'National Museum of the American Indian'), 
+			array('id' => '520000', name => 'National Portrait Gallery'), 
+			array('id' => '301000', name => 'National Postal Museum'), 
+			array('id' => '350000', name => 'National Zoological Park'), 
+			array('id' => '770000', name => 'Office of Policy and Analysis'), 
+			array('id' => '250001', name => 'Office of the Under Secretary for History, Art &amp; Culture'), 
+			array('id' => '110000', name => 'Secretary\'s Cabinet'), 
+			array('id' => '100000', name => 'SI-Other'), 
+			array('id' => '530000', name => 'Smithsonian American Art Museum'), 
+			array('id' => '404000', name => 'Smithsonian Astrophysical Observatory'), 
+			array('id' => '390000', name => 'Smithsonian Environmental Research Center'), 
+			array('id' => '733400', name => 'Smithsonian Gardens'), 
+			array('id' => '170000', name => 'Smithsonian Institution Archives'), 
+			array('id' => '360000', name => 'Smithsonian Latino Center'), 
+			array('id' => '630000', name => 'Smithsonian Institution Libraries'), 
+			array('id' => '340000', name => 'Smithsonian Tropical Research Institute'), 
+			array('id' => '250000', name => 'Arts and Humanities'), 
+			array('id' => '590000', name => 'Science'), 
+			array('id' => '941000', name => 'Smithsonian Institution Scholarly Press'), 
+			array('id' => '960000', name => 'DUSCIS')
+		);
+	}
 }
 
 
@@ -1461,59 +1623,6 @@ function _sro_delete_page() {
 	$post = get_page_by_path('publications', OBJECT, 'page');
 	wp_delete_post($post->ID);	
 }
-/* Return a list of SI Departments. 
- * This should really be an API call to somewhere else 
- */
-function _sro_get_departments() {
-	// TODO: This should really be an API Call
-	return array(
-		array('id' => '690000', name => 'Anacostia Community Museum'), 
-		array('id' => '480000', name => 'Archives of American Art'), 
-		array('id' => '710000', name => 'Asian Pacific American Center'), 
-		array('id' => '510000', name => 'Center for Folklife and Cultural Heritage'), 
-		array('id' => '580000', name => 'Cooper-Hewitt National Design Museum'), 
-		array('id' => '540000', name => 'Freer-Sackler Galleries'), 
-		array('id' => '560000', name => 'Hirshhorn Museum and Sculpture Garden'), 
-		array('id' => '640000', name => 'Museum Conservation Institute'), 
-		array('id' => '380000', name => 'National Air and Space Museum'), 
-		array('id' => '382010', name => 'NASM-Aeronautics'), 
-		array('id' => '382020', name => 'NASM-Space History'), 
-		array('id' => '382050', name => 'NASM-CEPS'), 
-		array('id' => '680000', name => 'National Museum of African American History and Culture'), 
-		array('id' => '570000', name => 'National Museum of African Art'), 
-		array('id' => '550000', name => 'National Museum of American History'), 
-		array('id' => '330000', name => 'NMNH'), 
-		array('id' => '331040', name => 'NMNH Encyclopedia of Life'), 
-		array('id' => '332010', name => 'NH-Mineral Science'), 
-		array('id' => '332020', name => 'NH-Anthropology'), 
-		array('id' => '332031', name => 'NH-Invertebrate Zoology'), 
-		array('id' => '332032', name => 'NH-Vertebrate Zoology'), 
-		array('id' => '332033', name => 'NH-Botany'), 
-		array('id' => '332034', name => 'NH-Entomology'), 
-		array('id' => '332040', name => 'NH-Paleobiology'), 
-		array('id' => '332050', name => 'NH-Smithsonian Marine Station'), 
-		array('id' => '500000', name => 'National Museum of the American Indian'), 
-		array('id' => '520000', name => 'National Portrait Gallery'), 
-		array('id' => '301000', name => 'National Postal Museum'), 
-		array('id' => '350000', name => 'National Zoological Park'), 
-		array('id' => '770000', name => 'Office of Policy and Analysis'), 
-		array('id' => '250001', name => 'Office of the Under Secretary for History, Art &amp; Culture'), 
-		array('id' => '110000', name => 'Secretary\'s Cabinet'), 
-		array('id' => '100000', name => 'SI-Other'), 
-		array('id' => '530000', name => 'Smithsonian American Art Museum'), 
-		array('id' => '404000', name => 'Smithsonian Astrophysical Observatory'), 
-		array('id' => '390000', name => 'Smithsonian Environmental Research Center'), 
-		array('id' => '733400', name => 'Smithsonian Gardens'), 
-		array('id' => '170000', name => 'Smithsonian Institution Archives'), 
-		array('id' => '360000', name => 'Smithsonian Latino Center'), 
-		array('id' => '630000', name => 'Smithsonian Institution Libraries'), 
-		array('id' => '340000', name => 'Smithsonian Tropical Research Institute'), 
-		array('id' => '250000', name => 'Arts and Humanities'), 
-		array('id' => '590000', name => 'Science'), 
-		array('id' => '941000', name => 'Smithsonian Institution Scholarly Press'), 
-		array('id' => '960000', name => 'DUSCIS')
-	);
-}
 
 /* Given a one-dimnsional array, return a 
  * properly formatted CSV string. 
@@ -1551,12 +1660,14 @@ function _unique_authors($authors) {
 wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
 wp_enqueue_style('silibraries-sro');
 
-/* Register our search widget with an anonymous function. */
+/* Register our search widgets with an anonymous function that registers the classes we byilt. */
 add_action( 'widgets_init', function() { register_widget('SROSearchWidget');});
-// add_action( 'widgets_init', function() { register_widget('SROFixedSearchWidget');});
+add_action( 'widgets_init', function() { register_widget('SROFixedSearchWidget');});
 
 /* Create our object and make magic happen.*/
 $wpSROSearch = new SROSearch();
+add_action( 'template_redirect', array($wpSROSearch, 'download_results') );
+
 register_activation_hook( __FILE__, 'sro_insert_search_results_page' );
 register_deactivation_hook( __FILE__, 'sro_remove_search_results_page' );
 add_action('wpmu_new_blog', 'sro_insert_search_results_page_new_blog', 10, 6 );
