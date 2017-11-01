@@ -703,7 +703,8 @@ class SROSearch {
 		$ret .= '</div>';
 		return $ret;
 	}	
-	
+
+
   /* 
    * Format one record while printing to a webpage
    * 
@@ -714,6 +715,262 @@ class SROSearch {
    * make the _format_html_results() messier.
    */ 
 	function _format_html_entry($rec, $include_extras = false) {
+		$ret = array();
+		$coins = array();
+		$coins[] = 'url_ver=Z39.88-2004';
+		$coins[] = 'ctx_ver=Z39.88-2004';
+		$coins[] = 'rfr_id=info%3Asid%2Fzotero.org%3A2';
+		if (!empty($rec->authors)) {
+			foreach (_unique_authors($rec->authors) as $a) {
+				$coins[] = 'rft.au='.urlencode($a->name);
+			}
+		}
+		$coins[] = 'rft.date='.urlencode($rec->date);
+
+		// Normalization
+		if (!empty($rec->title)) {
+			$rec->title = preg_replace('/<[^>].*>/', '', $rec->title);
+		}
+		if ($include_extras) {
+			if ($rec->pubtype == 'article') {
+				// COinS DATA FOR ZOTERO IMPORT
+				if (!empty($rec->doi)) {
+					$coins[] = 'rft_id=info%3Adoi%2F'.urlencode($rec->doi);
+				}
+				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Ajournal';
+				$coins[] = 'rft.genre=article';
+				$coins[] = 'rft.atitle='.urlencode($rec->title);
+				$coins[] = 'rft.jtitle='.urlencode($rec->journal);
+				if (!empty($rec->volume)) {
+					$coins[] = 'rft.volume='.urlencode($rec->volume);
+				}
+				if (!empty($rec->issue)) {
+					$coins[] = 'rft.issue='.urlencode($rec->issue);
+				}
+				$coins[] = 'rft.stitle='.urlencode($rec->journal);
+				$coins[] = 'rft.pages='.urlencode($rec->pages);
+				if (!empty($rec->pages)) {
+					if (strpos($rec->pages, '-')) {
+						$p = explode('-', $rec->pages);
+						$coins[] = 'rft.spage='.$p[0];
+						$coins[] = 'rft.epage='.$p[1];
+					} else {
+						$coins[] = 'rft.spage='.$rec->pages;
+					}
+				}
+				if (!empty($rec->issn)) {
+					$coins[] = 'rft.issn='.urlencode($rec->issn);
+				}
+			} elseif ($rec->pubtype == 'chapter') {
+				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
+				$coins[] = 'rft.genre=bookitem';
+				$coins[] = 'rft.atitle='.urlencode($rec->title);
+				$coins[] = 'rft.btitle='.$rec->book_title;
+				$coins[] = 'rft.publisher='.urlencode($rec->publisher);
+				$coins[] = 'rft.pages='.urlencode($rec->pages);
+			} elseif ($rec->pubtype == 'book') {
+				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
+				$coins[] = 'rft.genre=book';
+				$coins[] = 'rft.btitle='.urlencode($rec->title);
+				$coins[] = 'rft.tpages='.urlencode($rec->pages);
+			}
+			// $ret[] =  '<span class="Z3988" title="'.implode('&amp;',$coins).'"></span>';
+		} 
+		
+		// ------------------------------------------------------------------------------
+		// ------------------------------------------------------------------------------
+		
+		$itemtype = '';
+		$sechma = '';
+		if ($rec->pubtype == 'article') { // and (k1 does not contain 'Book review')
+			$itemtype = 'http://schema.org/ScholarlyArticle';
+		} elseif ($rec->pubtype == 'chapter') {
+			$itemtype = 'http://schema.org/Chapter';
+		} elseif ($rec->pubtype == 'book')  {
+			$itemtype = 'http://schema.org/Book';
+		}			
+
+		$sechma .= '<div class="schema-dot-org">';
+			$sechma .= '<div itemscope="" itemtype="'.$itemtype.'">';
+				$sechma .= '<span property="name">'.$rec->title.'</span>';
+				if ($rec->pubtype == 'book') {
+					$sechma .= '<span itemprop="name">'.$rec->book_title.'</span>';
+				}
+				foreach (_unique_authors($rec->authors) as $a) {
+					$sechma .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
+				}
+				if (!empty($rec->editors)) {
+						$sechma .= '<span itemscope="" itemtype="http://schema.org/Person">';
+							$sechma .= '<span itemprop="editor">';
+								foreach (_unique_authors($rec->editors) as $a) {
+									$sechma .= '<span itemprop="name">'.$a->name.'</span>';
+								}
+							$sechma .= '</span>';
+					 $sechma .= '</span>';
+				}
+				$sechma .= '<span property="datePublished">'.$rec->date.'</span>';
+				if (!empty($rec->doi)) {
+					$sechma .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
+				}
+				$sechma .= '<span property="isPartOf" typeof="Periodical">';
+				$sechma .= '<span property="name">'.$rec->journal.'</span>';
+				if ($rec->volume > 0) {
+					$sechma .= 'v. <span property="volumeNumber">'.$rec->volume.'</span>';
+				}
+				if ($rec->issue > 0) {
+					$sechma .= 'No. <span property="issueNumber">'.$rec->issue.'</span>';
+				}
+				$sechma .= '<span itemprop="pageStart">'.$rec->start_page.'</span>';
+				$sechma .= '<span itemprop="pageEnd">'.$rec->end_page.'</span>';
+				$sechma .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
+				$sechma .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
+				$sechma .= '<span itemprop="numberOfPages">'.$rec->pages.'</span>';
+				$sechma .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
+				$sechma .= '</span>';
+			$sechma .= '</div>';
+		$sechma .= '</div>';
+
+
+		$type = 'Other';
+		$icon = 'question-circle';
+		if ($rec->pubtype == 'article') { $type = 'Article'; $icon = 'file-alt'; } 
+		elseif ($rec->pubtype == 'ejournal_article') { $type = 'E-Journal Article'; $icon = 'file-pdf'; } 
+		elseif ($rec->pubtype == 'chapter') { $type = 'Book Chapter'; $icon = 'bookmark'; } 
+		elseif ($rec->pubtype == 'book') { $type = 'Book'; $icon = 'book'; } 
+		elseif ($rec->pubtype == 'book_edited') { $type = 'Book, Edited'; $icon = 'book'; } 
+		elseif ($rec->pubtype == 'thesis') { $type = 'Thesis'; $icon = 'file-edit'; } 
+		elseif ($rec->pubtype == 'web_page') { $type = 'Web Page'; $icon = 'globe'; } 
+		elseif ($rec->pubtype == 'magazine_article') { $type = 'Magazine Article'; $icon = 'file'; } 
+		elseif ($rec->pubtype == 'video_dvd') { $type = 'Video/DVD'; $icon = 'video'; } 
+		elseif ($rec->pubtype == 'audio') { $type = 'Audio Recording'; $icon = 'volume-up'; } 
+		elseif ($rec->pubtype == 'report') { $type = 'Report'; $icon = 'list-alt'; } 
+		elseif ($rec->pubtype == 'newspaper_article') { $type = 'Newspaper Article'; $icon = 'newspaper'; } 
+		elseif ($rec->pubtype == 'motion_picture') { $type = 'Motion Picture'; $icon = 'film'; } 
+		elseif ($rec->pubtype == 'monograph') { $type = 'Monograph'; $icon = 'book'; } 
+		elseif ($rec->pubtype == 'map') { $type = 'Map'; $icon = 'map'; } 
+		elseif ($rec->pubtype == 'artwork') { $type = 'Artwork'; $icon = 'image'; } 
+		elseif ($rec->pubtype == 'abstract') { $type = 'Abstract'; $icon = 'align-justify'; } 
+		elseif ($rec->pubtype == 'forum_blog') { $type = 'Forum/Blog Post'; $icon = 'comments'; } 
+		elseif ($rec->pubtype == 'generic') { $type = 'Generic'; $icon = 'rectangle-portrait'; } 
+
+	// 	From Suzanne: 
+	// 		author_display. date. <ACTIONABLE LINK the words in title> title. [journal]<OR>[in [editor_display}. book_title]. publisher_place, publisher, (series). volume(issue):start_page-end_page. doi<ACTIONABLE DOI>
+	// 	
+	// 	My interpretation
+	// 	 - Author(s) followed by a period.
+	// 	 - Date followed by a period. (what format? year? Month/year? Whatever's in the database?)=
+	// 	 - The title, linked to somewhere else if there's a URL in the database.
+	// 	 - One of the two following:
+	// 		- The journal name followed by a period, in italics, if provided 
+	// 		- The word "in" followed by the editors followed by a period, if provided, followed by the book title followed by a period in italics, if provided.
+	// 	 - Publisher place, followed by a comma.
+	// 	 - Publisher name, followed by a comma.
+	// 	 - Series in parentheses, followed by a period.
+	// 	 - Volume field
+	// 	 - Issue field, in parentheses followed by a colon:
+	// 	 - Start page
+	// 	 - If end page provided, a hyphen and the end page.
+	// 	 - A period. (to end the volume/issue/pages)
+	// 	 - The DOI linked to the DOI url, if provided.
+	 
+		if ($include_extras) {
+			if (!empty($rec->doi)) {
+				$ret[] =  '<div class="show_metric altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
+			}
+		}
+		$ret[] =  '<div class="result fa-'.$icon.'" title="'.$type.'">';			
+			// #a1# -- Author(s) followed by a period
+			if (!empty($rec->author_display)) {
+				$ret[] =  $rec->author_display;
+			}
+			// #yr# -- Date followed by a period
+			if (!empty($rec->date)) {
+				if (!empty($rec->author_display)) {
+					if (!preg_match('/\.$/', $rec->author_display)) {
+						$ret[] =  '.';
+					}
+				}
+				$ret[] =  ' '.$rec->date;
+			}
+
+			// #ul# #t1# -- The title, linked to somewhere else if there's a URL in the database
+			if (preg_match('/http/', $rec->link)) {
+				$ret[] =  '. <a href="'.$rec->link.'">'.$rec->title.'</a>';
+			} else {
+				$ret[] =  '. '.$rec->title;
+			}
+		
+			// #jf# -- One of the two following
+			if (!empty($rec->journal)) {
+				// -- The journal name followed by a period, in italics, if provided
+				$ret[] =  ' <em>'.$rec->journal.'</em>,';
+			} else {
+				$ret[] =  " in";
+				if (!empty($rec->editor_display)) {
+					// -- The word "in" followed by the editors followed by a period, if provided, 
+					//    followed by the book title followed by a period in italics, if provided.
+					// QUESTION FOR SUZANNE - Title and book title different?
+					$ret[] =  ' '.$rec->editor_display;
+					if (!empty($rec->book_title)) {
+						if (!preg_match('/\.$/', $rec->editor_display)) {
+							$ret[] =  '.';
+						}
+						$ret[] =  ' <em>'.$rec->book_title.'</em>.';
+					}
+				}
+			}
+			// 	 - Publisher place, followed by a comma.
+			if (!empty($rec->publisher_place)) {
+				$ret[] =  ' '.$rec->publisher_place;
+			}
+			// 	 - Publisher name, followed by a comma.
+			if (!empty($rec->publisher)) {
+				$ret[] =  ', '.$rec->publisher;
+			}
+			// 	 - Series in parentheses, followed by a period.
+			// QUESTION FOR SUZANNE: Will we ever have series and issue but no volume?
+			if (!empty($rec->series)) {
+				$ret[] =  '. ('.$rec->series.').';
+			}
+			// 	 - Volume field
+			if (!empty($rec->volume)) {
+				$ret[] =  '. '.$rec->volume;
+			}
+			// 	 - Issue field, in parentheses followed by a colon:
+			if (!empty($rec->issue)) {
+				$ret[] =  ' ('.$rec->issue.')';
+			}
+			// 	 - Start page
+			if (!empty($rec->start_page)) {
+				$ret[] =  ':'.$rec->start_page;
+			}
+			// 	 - If end page provided, a hyphen and the end page.
+			if (!empty($rec->end_page)) {
+				$ret[] =  '-'.$rec->end_page;
+			}
+			// 	 - The DOI linked to the DOI url, if provided.
+			if (!empty($rec->doi)) {
+				$ret[] =  '. <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+			}
+			// 	 - A period. (to end everything)
+			$ret[] =  '.';
+		$ret[] =  '</div>';
+		return implode('', $ret);
+	}
+	
+  /* 
+   * Format one record while printing to a webpage
+   * 
+   * $include_extras will print COINS data and Altmetric 
+   * Badges onto the page.
+   *
+   * This just encapsultates a lot of code that would otherwise
+   * make the _format_html_results() messier.
+   */ 
+  /*
+	function _format_html_entry_old($rec, $include_extras = false) {
 		$coins = array();
 		$coins[] = 'url_ver=Z39.88-2004';
 		$coins[] = 'ctx_ver=Z39.88-2004';
@@ -781,10 +1038,10 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		if ($rec->pubtype == 'article') { // and (k1 does not contain 'Book review')
 			$ret .= '<div class="schema-dot-org">';
-				$ret .= '<div vocab="http://schema.org/" typeof="ScholarlyArticle">';
+				$ret .= '<div itemscope="" itemtype="http://schema.org/ScholarlyArticle">';
 					$ret .= '<span property="name">'.$rec->title.'</span>';
 					foreach (_unique_authors($rec->authors) as $a) {
-						$ret .= '<span property ="author">'.$a->name.'</span>';
+                                                $ret .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
 					}
 					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
 					if (!empty($rec->doi)) {
@@ -886,27 +1143,27 @@ class SROSearch {
 
 			$ret .= '<div class="result fa-bookmark" title="Chapter">';
 				$ret .= '<div class="schema-dot-org">';
-					$ret .= '<div vocab="http://schema.org/" typeof="Chapter">';
-						$ret .= '<span itemprop="name" itemtype="http://schema.org/thing">'.$rec->title.'</span>';
+					$ret .= '<div itemscope="" itemtype="http://schema.org/Chapter">';
+						$ret .= '<span itemprop="name">'.$rec->title.'</span>';
 						foreach (_unique_authors($rec->authors) as $a) {
-							$ret .= '<span property ="author">'.$a->name.'</span>';
+	                                                $ret .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
 						}
-						$ret .= '<span itemprop="pageStart" itemtype="http://schema.org/Chapter">'.$rec->start_page.'</span>';
-						$ret .= '<span itemprop="pageEnd" itemtype="http://schema.org/Chapter">'.$rec->end_page.'</span>';
-						$ret .= '<span itemprop="ISBN" itemtype="http://schema.org/Book">'.$rec->issn_isbn.'</span>';
-						$ret .= '<span itemprop="isPartOf"itemtype="http://schema.org/CreativeWork">';
+						$ret .= '<span itemprop="pageStart">'.$rec->start_page.'</span>';
+						$ret .= '<span itemprop="pageEnd">'.$rec->end_page.'</span>';
+						$ret .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
+						$ret .= '<span itemprop="isPartOf"></span>';
 						if (!empty($rec->editors)) {
-								$ret .= '<span itemscope itemtype="http://schema.org/Person">';
-									$ret .= '<span itemprop="editor" itemtype="http://schema.org/Person">';
+								$ret .= '<span itemscope="" itemtype="http://schema.org/Person">';
+									$ret .= '<span itemprop="editor">';
 										foreach ($rec->editors as $a) {
-											$ret .= '<span property ="editor">'.$a->name.'</span>';
+											$ret .= '<span itemprop="name">'.$a->name.'</span>';
 										}
 									$ret .= '</span>';
 							 $ret .= '</span>';
 						}
-						$ret .= '<span itemprop="name" itemtype="http://schema.org/thing">'.$rec->book_title.'</span>';
+						$ret .= '<span itemprop="name">'.$rec->book_title.'</span>';
 						$ret .= '<span property="datePublished">'.$rec->year.'</span>';
-						$ret .= '<span itemprop="location" itemtype= "http://schema.org/event">'.$rec->publisher_place.'</span>';
+						$ret .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
 						$ret .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
 					$ret .= '</div>';
 				$ret .= '</div>';
@@ -931,7 +1188,7 @@ class SROSearch {
 					$ret .= '.';
 				}
 				$ret .= ' In: ';
-				if (!empty($ret->editor_display)) {
+				if (!empty($rec->editor_display)) {
 					$ret .= $rec->editor_display.',';
 				}
 				$ret .= ' <i>'.$rec->book_title.'.</i>';
@@ -956,19 +1213,19 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		} elseif ($rec->pubtype == 'book') {
 			$ret .= '<div class="schema-dot-org">';
-				$ret .= '<div vocab="http://schema.org/" typeof="Book">';
+				$ret .= '<div itemscope="" itemtype="http://schema.org/Book">';
 					$ret .= '<span property="name">'.$rec->title.'</span>';
 					foreach (_unique_authors($rec->authors) as $a) {
-						$ret .= '<span property ="author">'.$a->name.'</span>';
+						$ret .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
 					}
 					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
 					if (!empty($rec->doi)) {
 						$ret .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 					}
-					$ret .= '<span itemprop="location" itemtype= "http://schema.org/event">'.$rec->publisher_place.'</span>';
+					$ret .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
 					$ret .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
-					$ret .= '<span itemprop="numberOfPages" itemtype="http://schema.org/Book">'.$rec->pages.'</span>';
-					$ret .= '<span itemprop="ISBN" itemtype="http://schema.org/Book">'.$rec->issn_isbn.'</span>';
+					$ret .= '<span itemprop="numberOfPages">'.$rec->pages.'</span>';
+					$ret .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
 					$ret .= '</span>';
 				$ret .= '</div>';
 			$ret .= '</div>';
@@ -989,7 +1246,7 @@ class SROSearch {
 				if (!preg_match('/[.?]$/', $rec->title)) {
 					$ret .= '.';
 				}
-				if (!empty($ret->editor_display)) {
+				if (!empty($rec->editor_display)) {
 					$ret .= ' '.$rec->editor_display;
 				}
 				if (!empty($rec->publisher_place)) {
@@ -1024,7 +1281,7 @@ class SROSearch {
 				if (!preg_match('/[.?]$/', $rec->title)) {
 					$ret .= '.';
 				}
-				if (!empty($ret->editor_display)) {
+				if (!empty($rec->editor_display)) {
 					$ret .= $rec->editor_display.',';
 					if (!preg_match('/[.?]$/', $rec->editor_display)) {
 						$ret .= '.';
@@ -1196,10 +1453,10 @@ class SROSearch {
 				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
 				$ret .= '"'.$rec->title.'".';
 				$ret .= ' <em>'.$rec->journal.'</em>.';
-				if (!empty($ret->editor_display)) {
+				if (!empty($rec->editor_display)) {
 					$ret .= ' ed.'.$rec->editor_display.'.';
 				}
-				if (!empty($ret->volume)) {
+				if (!empty($rec->volume)) {
 					$ret .= ' '.$rec->volume.'.';
 				}
 				if (!empty($rec->publisher_place)) {
@@ -1441,6 +1698,7 @@ class SROSearch {
 		}
 		return $ret;
 	}
+  */
 
   /* 
    * Send the query to the Search API and decode the results. 
