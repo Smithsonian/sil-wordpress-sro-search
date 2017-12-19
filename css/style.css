@@ -45,6 +45,13 @@
 	background: #ccc;
 }
 
+.advanced-link {
+	text-align: right;
+	font-size: 80%;
+	width: 90%;
+	margin: -15px auto 0;
+}
+
 #advanced-search {
 	background-color: #eee;
 	padding: 10px;

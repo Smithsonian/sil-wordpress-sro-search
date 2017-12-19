@@ -14,6 +14,7 @@ require_once(ABSPATH . 'wp-admin/includes/template.php');
 require_once(ABSPATH .'wp-content/plugins/silibraries-sro/class.PaginationLinks.php');
 require_once(ABSPATH .'wp-content/plugins/silibraries-sro/admin.php');
 
+
 /* 
  * Create the widget that will allow us to add the search form to the sidebar
  */
@@ -56,7 +57,7 @@ class SROSearchWidget extends WP_Widget {
    * Widget Backend
    */ 
 	public function form( $instance ) {
-		if ( isset( $instance[ 'title' ] ) ) {
+		if ( !empty( $instance[ 'title' ] ) ) {
 			$title = $instance[ 'title' ];
 		} else {
 			$title = __( 'New title', 'sro_widget_domain' );
@@ -124,7 +125,7 @@ class SROFixedSearchWidget extends WP_Widget {
 			array('full_query' => $instance['search_query'])
 		);
 
-		$html .= $wpSROSearch->_format_html_results(
+		$html = $wpSROSearch->_format_html_results(
 			$json, $instance['max']
 		);
 
@@ -139,17 +140,17 @@ class SROFixedSearchWidget extends WP_Widget {
    * Widget Backend
    */ 
 	public function form( $instance ) {
-		if ( isset( $instance[ 'title' ] ) ) {
+		if ( !empty( $instance[ 'title' ] ) ) {
 			$title = $instance[ 'title' ];
 		} else {
 			$title = __( 'New title', 'sro_fixed_widget_domain' );
 		}
-		if ( isset( $instance[ 'search_query' ] ) ) {
+		if ( !empty( $instance[ 'search_query' ] ) ) {
 			$search_query = $instance[ 'search_query' ];
 		} else {
 			$search_query = __( 'a=b&c=d', 'sro_fixed_widget_domain' );
 		}
-		if ( isset( $instance[ 'max' ] ) ) {
+		if ( !empty( $instance[ 'max' ] ) ) {
 			$max = $instance[ 'max' ];
 		} else {
 			$max = __( '5', 'sro_fixed_widget_domain' );
@@ -205,27 +206,33 @@ class SROSearch {
    * this does not print the form to the page.
    */ 
 	public function get_form($type = 'basic', $query = '') {
-		$ret = '<form name="sro_basic_search" method="GET" action="/publications/">';
+	
+		$params = $this->_clean_params();
+		
+		$ret = '<form name="sro_search" method="GET" action="/publications/" id="sro_'.esc_attr($type).'_search">';
 		$ret .= '<input type="hidden" name="action" value="sro_search_results">';
 		if ($type == 'basic') {
 			$ret .= '<label class="hidden" for="q">Enter Search Term</label>';
-			$ret .= '<p class="note">Search our database of over 85,000 publications and data sets.<p>';
+			$ret .= '<p class="note">Search our database of over 80,000 publications and datasets.<p>';
 			$ret .= '<input type="text" id="q" name="q" placeholder="Enter Search Term" />';
+			$ret .= '<p class="advanced-link"><a href="/publications/?advanced=1">Advanced Search</a></p>';
+			$ret .= get_submit_button('Go', 'primary large', null, false);
 		}
 		if ($type == 'advanced') {
-			$ret .= "<h4>Advanced Search</h4>";
+// 			$ret .= "<h4>Advanced Search</h4>";
 			$ret .= '<label class="hidden" for="q">Enter Search Term</label>';
 			$ret .= '<input type="text" id="q" name="q" value="'.esc_attr($query).'" style="width: 60%" placeholder="Enter Search Term" />';
+			$ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
 		}
-		$ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
 		if ($type == 'advanced') {
 			$ret .= '<br><a id="advanced-link" onClick="sroToggleAdvancedSearch();">Advanced Search</a>';
 			$hide = true;
-			if (!empty($_GET['limit']) || 
-			    !empty($_GET['date']) || 
-			    !empty($_GET['dept']) || 
-			    (!empty($_GET['sort']) && $_GET['sort'] != 'published') || 
-			    (!empty($_GET['send_to']) && $_GET['send_to'] != 'screen')){
+			if (!empty($params['advanced']) ||
+			    !empty($params['limit']) || 
+			    !empty($params['year']) || 
+			    !empty($params['dept']) || 
+			    (!empty($params['sort']) && $params['sort'] != 'published') || 
+			    (!empty($params['send_to']) && $params['send_to'] != 'screen')){
 				$hide = false;
 			}
 			$ret .= '<div id="advanced-search"'.($hide ? ' style="display:none"' : '').'>';
@@ -234,20 +241,20 @@ class SROSearch {
 					$ret .= '<label for="limit">Limit&nbsp;Search&nbsp;Term&nbsp;to:</label>&nbsp;';
 					$ret .= '<select id="limit" name="limit">';
 						$ret .= '<option value="">(none)</option>';
-						$ret .= '<option value="author"'.($_GET['limit'] == 'author' ? ' selected' : '').'>Author Name</option>';
-						$ret .= '<option value="author_id"'.($_GET['limit'] == 'author_id' ? ' selected' : '').'>Author ID</option>';
-						$ret .= '<option value="journal"'.($_GET['limit'] == 'journal' ? ' selected' : '').'>Journal Title</option>';
+						$ret .= '<option value="author"'.($params['limit'] == 'author' ? ' selected' : '').'>Author Name</option>';
+						$ret .= '<option value="author_id"'.($params['limit'] == 'author_id' ? ' selected' : '').'>Author ID</option>';
+						$ret .= '<option value="journal"'.($params['limit'] == 'journal' ? ' selected' : '').'>Journal Title</option>';
 					$ret .= '</select>';
 					$ret .= '&nbsp;&nbsp;&nbsp; ';
 					$ret .= '<label for="date">Limit&nbsp;by&nbsp;date:</label>&nbsp;';
-					$ret .= '<input id="date" name="date" maxlength="4" size="4" value="'.esc_attr($_GET['date']).'">';
+					$ret .= '<input id="date" name="date" maxlength="4" size="4" value="'.esc_attr($params['year']).'">';
 					$ret .= '&nbsp;&nbsp;&nbsp; ';
 					$ret .= '<label for="date">Limit&nbsp;to&nbsp;Museum&nbsp;or&nbsp;Department:</label>&nbsp;';
 					$ret .= '<select name="dept" id="dept">';
 						$ret .= '<option value="" selected="selected">All</option>';
 						$opts = $this->_sro_get_departments();
 						foreach ($opts as $o) {
-							$ret .= '<option value="'.$o['id'].'"'.($_GET['dept'] == $o['id'] ? ' selected' : '').'>'.$o['name'].'</option>';
+							$ret .= '<option value="'.$o['id'].'"'.($params['dept'] == $o['id'] ? ' selected' : '').'>'.$o['name'].'</option>';
 						}
 					$ret .= '</select>';
 				$ret .= '</div>';
@@ -255,23 +262,23 @@ class SROSearch {
 					$ret .= '<label for="sort">Sort&nbsp;results&nbsp;by:</label>&nbsp;';
 					$ret .= '<select id="sort" name="sort"> ';
 						$ret .= '<option value="published">Date Published</option>';
-						$ret .= '<option value="author"'.($_GET['sort'] == 'author' ? ' selected' : '').'>Author Name</option>';
-						$ret .= '<option value="journal"'.($_GET['sort'] == 'journal' ? ' selected' : '').'>Journal Name</option>';
-						$ret .= '<option value="added"'.($_GET['sort'] == 'added' ? ' selected' : '').'>Date Added</option>';
+						$ret .= '<option value="author"'.($params['sort'] == 'author' ? ' selected' : '').'>Author Name</option>';
+						$ret .= '<option value="journal"'.($params['sort'] == 'journal' ? ' selected' : '').'>Journal Name</option>';
+						$ret .= '<option value="added"'.($params['sort'] == 'added' ? ' selected' : '').'>Date Added</option>';
 					$ret .= '</select>';
 				$ret .= '</div>';
 				$ret .= '<div class="criteria export">';
 					$ret .= '<label for="send_to">Send&nbsp;Results&nbsp;to:</label>&nbsp;';
 					$ret .= '<select id="send_to" name="send_to">';
 						$ret .= '<option value="screen">This Window</option>';
-						$ret .= '<option value="download"'.($_GET['send_to'] == 'download' ? ' selected' : '').'>Download</option>';
+						$ret .= '<option value="download"'.($params['send_to'] == 'download' ? ' selected' : '').'>Download</option>';
 					$ret .= '</select>';
 					$ret .= '&nbsp;&nbsp;&nbsp; ';
 					$ret .= '<label for="export_format">Export&nbsp;Format:</label>&nbsp;';
 					$ret .= '<select id="export_format" name="export_format">';
 						$ret .= '<option value="json">JSON</option>';
-						$ret .= '<option value="csv"'.($_GET['export_format'] == 'csv' ? ' selected' : '').'>Comma-Separated (CSV)</option>';
-						$ret .= '<option value="ris"'.($_GET['export_format'] == 'ris' ? ' selected' : '').'>RIS (Zotero, Mendeley, etc)</option>';
+						$ret .= '<option value="csv"'.($params['export_format'] == 'csv' ? ' selected' : '').'>Comma-Separated (CSV)</option>';
+						$ret .= '<option value="ris"'.($params['export_format'] == 'ris' ? ' selected' : '').'>RIS (Zotero, Mendeley, etc)</option>';
 // 						$ret .= '<option value="text"'.($_GET['export_format'] == 'text' ? ' selected' : '').'>Text Citation</option>';
 					$ret .= '</select>';
 				$ret .= '</div>';
@@ -298,6 +305,7 @@ class SROSearch {
 
 		$params = array(
 			'search_term' => null,
+			'advanced' => false,
 			'limit' => null,
 			'year' => null,
 			'dept' => null,
@@ -310,21 +318,27 @@ class SROSearch {
 			'query_extra' => $options['query_extra'],
 		);
 
-		if (isset($_GET['q'])) {
+		if (!empty($_GET['q'])) {
 			$params['search_term'] = trim($_GET['q']);
 		}		
+
+		if (!empty($_GET['advanced'])) {
+			$params['advanced'] = ($_GET['advanced'] ? true : false);
+		}		
 		
-		if (isset($_GET['limit']) && $_GET['limit']) {
+		if (!empty($_GET['limit']) && $_GET['limit']) {
 			if (in_array($_GET['limit'], array('author', 'auhtor_id', 'journal'))) {
 				$params['limit'] = $_GET['limit']; // It has to be one of these values
 			}
 		}
 		
-		if (isset($_GET['date']) && $_GET['date']) {
+		if (!empty($_GET['year']) && $_GET['year']) {
+			$params['year'] = (int)$_GET['year']; // Cast to int to sanitize
+		} elseif (!empty($_GET['date']) && $_GET['date']) {
 			$params['year'] = (int)$_GET['date']; // Cast to int to sanitize
 		}
 
-		if (isset($_GET['dept']) && $_GET['dept']) {
+		if (!empty($_GET['dept']) && $_GET['dept']) {
 			$opts = $this->_sro_get_departments();
 			foreach ($opts as $o) {
 				if ($_GET['dept'] == $o['id']) {
@@ -334,21 +348,21 @@ class SROSearch {
 			}
 		}
 
-		if (isset($_GET['sort']) && $_GET['sort']) {
+		if (!empty($_GET['sort']) && $_GET['sort']) {
 			if (in_array($_GET['sort'], array('published', 'author', 'journal', 'added'))) {
 				$params['sort'] = $_GET['sort']; // It has to be one of these values
 			}
 		}
 
-		if (isset($_GET['perpage']) && $_GET['perpage']) {
+		if (!empty($_GET['perpage']) && $_GET['perpage']) {
 			$params['perpage'] = (int)$_GET['perpage']; // Cast to int to sanitize
 		}
 
-		if (isset($_GET['pg']) && $_GET['pg']) {
+		if (!empty($_GET['pg']) && $_GET['pg']) {
 			$params['page'] = (int)$_GET['pg']; // Cast to int to sanitize
 		}
 
-		if (isset($_GET['send_to']) && $_GET['send_to']) {
+		if (!empty($_GET['send_to']) && $_GET['send_to']) {
 			if (in_array($_GET['send_to'], array('screen', 'download'))) {
 				$params['send_to'] = $_GET['send_to']; // It has to be one of these values
 			}
@@ -358,8 +372,8 @@ class SROSearch {
 			$params['perpage'] = 'all';			
 		}
 
-		if (isset($_GET['export_format']) && $_GET['export_format']) {
-			if (in_array($_GET['export_format'], array('json', 'csv', 'ris', 'text'))) {
+		if (!empty($_GET['export_format']) && $_GET['export_format']) {
+			if (in_array($_GET['export_format'], array('json', 'csv', 'ris', 'text', 'altmetrics'))) {
 				$params['export_format'] = $_GET['export_format']; // It has to be one of these values
 			}
 		}
@@ -391,8 +405,8 @@ class SROSearch {
 		
 		wp_register_script('altmetric', 'https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js');
 		wp_enqueue_script('altmetric');
-
-		print $this->get_form('advanced', $_GET['q']);
+		
+		print $this->get_form('advanced', $params['search_term']);
 
 		if ($results) {
 
@@ -447,7 +461,7 @@ class SROSearch {
 
 			$output = null;
 			$filename = null;
-			header('Content-Description: File Transfer');
+
 			if ($params['export_format'] == 'ris') {
 				$output = $this->_format_ris_results($results);
 				$filename = 'search_results.ris';
@@ -463,6 +477,11 @@ class SROSearch {
 				$filename = 'search_results.txt';
 				$header = 'Content-Type: text/plain';
 
+			} elseif ($params['export_format'] == 'altmetrics') {
+				$output = $this->_format_altmetrics_results($results);
+				$filename = 'sro_altmetrics.csv';
+				$header = 'Content-Type: text/html';
+
 			} else { // ($$params['export_format'] == 'json') {
 				// There is no JSON format function. We just send back what we got from the API.
 				$output = json_encode($results, JSON_PRETTY_PRINT);
@@ -470,13 +489,15 @@ class SROSearch {
 				$header = 'Content-Type: application/json';
 			}
 
-			if ($output && $filename) {
+			if ($output && $filename) {				
 				header($header);
 				header('Content-Transfer-Encoding: binary');
 				header('Expires: 0');
 				header('Cache-Control: must-revalidate, post-check=0, pre-check=0');
 				header('Pragma: public');
-				header('Content-Disposition: attachment; filename="'.$filename.'"');
+				if ($params['export_format'] != 'altmetrics') {
+					header('Content-Disposition: attachment; filename="'.$filename.'"');
+				}
 				header('Content-Length: ' . strlen($output));
 				ob_clean();
 				flush();
@@ -673,6 +694,25 @@ class SROSearch {
 	}
 
   /* 
+   * Format all results for exporting to a CSV file
+   */ 
+	function _format_altmetrics_results($res) {
+		$output = '';		
+		$output .= '<!DOCTYPE html>'."\n";
+		$output .= '<html>'."\n";
+		$output .= '<head>'."\n";
+		$output .= '  <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />'."\n";
+		$output .= '  <meta name="robots" content="noindex, nofollow">'."\n";
+		$output .= '  <title>Smithsonian Altmetric Data Ingest</title>'."\n";
+		$output .= '</head>'."\n";
+		$output .= '<body>'."\n";
+		$output .= preg_replace("/([\r\n]+)/", "<br>\n", $res);
+		$output .= '</body>'."\n";
+		$output .= '</html>'."\n";
+		return $output;
+	}
+
+  /* 
    * Format all results for exporting to a text file.
    *
    * This is not currently used.
@@ -704,7 +744,6 @@ class SROSearch {
 		return $ret;
 	}	
 
-
   /* 
    * Format one record while printing to a webpage
    * 
@@ -722,7 +761,7 @@ class SROSearch {
 		$coins[] = 'rfr_id=info%3Asid%2Fzotero.org%3A2';
 		if (!empty($rec->authors)) {
 			foreach (_unique_authors($rec->authors) as $a) {
-				$coins[] = 'rft.au='.urlencode($a->name);
+				$coins[] = 'rft.au='.urlencode($a['name']);
 			}
 		}
 		$coins[] = 'rft.date='.urlencode($rec->date);
@@ -734,22 +773,27 @@ class SROSearch {
 		if ($include_extras) {
 			if ($rec->pubtype == 'article') {
 				// COinS DATA FOR ZOTERO IMPORT
-				if (!empty($rec->doi)) {
+				if (!empty($rec->doi) && !empty($rec->doi)) {
 					$coins[] = 'rft_id=info%3Adoi%2F'.urlencode($rec->doi);
 				}
 				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Ajournal';
 				$coins[] = 'rft.genre=article';
-				$coins[] = 'rft.atitle='.urlencode($rec->title);
-				$coins[] = 'rft.jtitle='.urlencode($rec->journal);
-				if (!empty($rec->volume)) {
+				if (!empty($rec->title)) {
+					$coins[] = 'rft.atitle='.urlencode($rec->title);
+				}
+				if (!empty($rec->journal)) {
+					$coins[] = 'rft.jtitle='.urlencode($rec->journal);
+				}
+				if (!empty($rec->volume) && !empty($rec->volume)) {
 					$coins[] = 'rft.volume='.urlencode($rec->volume);
 				}
-				if (!empty($rec->issue)) {
+				if (!empty($rec->issue) && !empty($rec->issue)) {
 					$coins[] = 'rft.issue='.urlencode($rec->issue);
 				}
+				if (!empty($rec->journal)) {
 				$coins[] = 'rft.stitle='.urlencode($rec->journal);
-				$coins[] = 'rft.pages='.urlencode($rec->pages);
-				if (!empty($rec->pages)) {
+				}
+				if (!empty($rec->pages) && !empty($rec->pages)) {
 					if (strpos($rec->pages, '-')) {
 						$p = explode('-', $rec->pages);
 						$coins[] = 'rft.spage='.$p[0];
@@ -758,25 +802,42 @@ class SROSearch {
 						$coins[] = 'rft.spage='.$rec->pages;
 					}
 				}
-				if (!empty($rec->issn)) {
+				if (!empty($rec->issn) && !empty($rec->issn)) {
 					$coins[] = 'rft.issn='.urlencode($rec->issn);
 				}
 			} elseif ($rec->pubtype == 'chapter') {
-				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				if (!empty($rec->isbn)) {
+					$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				}
 				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
 				$coins[] = 'rft.genre=bookitem';
-				$coins[] = 'rft.atitle='.urlencode($rec->title);
-				$coins[] = 'rft.btitle='.$rec->book_title;
-				$coins[] = 'rft.publisher='.urlencode($rec->publisher);
-				$coins[] = 'rft.pages='.urlencode($rec->pages);
+				
+				if (!empty($rec->title)) {
+					$coins[] = 'rft.atitle='.urlencode($rec->title);
+				}
+				if (!empty($book_title)) {
+					$coins[] = 'rft.btitle='.$rec->book_title;
+				}
+				if (!empty($rec->publisher)) {
+					$coins[] = 'rft.publisher='.urlencode($rec->publisher);
+				}
+				if (!empty($rec->pages)) {
+					$coins[] = 'rft.pages='.urlencode($rec->pages);
+				}
 			} elseif ($rec->pubtype == 'book') {
-				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				if (!empty($rec->isbn)) {
+					$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
+				}
 				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
 				$coins[] = 'rft.genre=book';
-				$coins[] = 'rft.btitle='.urlencode($rec->title);
-				$coins[] = 'rft.tpages='.urlencode($rec->pages);
+				if (!empty($rec->title)) {
+					$coins[] = 'rft.btitle='.urlencode($rec->title);
+				}
+				if (!empty($rec->pages)) {
+					$coins[] = 'rft.tpages='.urlencode($rec->pages);
+				}
 			}
-			// $ret[] =  '<span class="Z3988" title="'.implode('&amp;',$coins).'"></span>';
+			$ret[] =  '<span class="Z3988" title="'.implode('&amp;',$coins).'"></span>'."\n";
 		} 
 		
 		// ------------------------------------------------------------------------------
@@ -794,40 +855,62 @@ class SROSearch {
 
 		$sechma .= '<div class="schema-dot-org">';
 			$sechma .= '<div itemscope="" itemtype="'.$itemtype.'">';
-				$sechma .= '<span property="name">'.$rec->title.'</span>';
+				if (!empty($rec->title)) {
+					$sechma .= '<span property="name">'.$rec->title.'</span>';
+				}
 				if ($rec->pubtype == 'book') {
-					$sechma .= '<span itemprop="name">'.$rec->book_title.'</span>';
+					if (!empty($rec->book_title)) {
+						$sechma .= '<span itemprop="name">'.$rec->book_title.'</span>';
+					}
 				}
-				foreach (_unique_authors($rec->authors) as $a) {
-					$sechma .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
+				if (!empty($rec->authors)) {
+					foreach (_unique_authors($rec->authors) as $a) {
+						$sechma .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a['name'].'</span></span>';
+					}
 				}
-				if (!empty($rec->editors)) {
+				if (!empty($rec->editors) && !empty($rec->editors)) {
 						$sechma .= '<span itemscope="" itemtype="http://schema.org/Person">';
 							$sechma .= '<span itemprop="editor">';
 								foreach (_unique_authors($rec->editors) as $a) {
-									$sechma .= '<span itemprop="name">'.$a->name.'</span>';
+									$sechma .= '<span itemprop="name">'.$a['name'].'</span>';
 								}
 							$sechma .= '</span>';
 					 $sechma .= '</span>';
 				}
-				$sechma .= '<span property="datePublished">'.$rec->date.'</span>';
-				if (!empty($rec->doi)) {
+				if (!empty($rec->date)) {
+					$sechma .= '<span property="datePublished">'.$rec->date.'</span>';
+				}
+				if (!empty($rec->doi) && !empty($rec->doi)) {
 					$sechma .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 				}
 				$sechma .= '<span property="isPartOf" typeof="Periodical">';
-				$sechma .= '<span property="name">'.$rec->journal.'</span>';
-				if ($rec->volume > 0) {
+				if (!empty($rec->journal)) {
+					$sechma .= '<span property="name">'.$rec->journal.'</span>';
+				}
+				if (!empty($rec->volume) && $rec->volume > 0) {
 					$sechma .= 'v. <span property="volumeNumber">'.$rec->volume.'</span>';
 				}
-				if ($rec->issue > 0) {
+				if (!empty($rec->issue) && $rec->issue > 0) {
 					$sechma .= 'No. <span property="issueNumber">'.$rec->issue.'</span>';
 				}
-				$sechma .= '<span itemprop="pageStart">'.$rec->start_page.'</span>';
-				$sechma .= '<span itemprop="pageEnd">'.$rec->end_page.'</span>';
-				$sechma .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
-				$sechma .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
-				$sechma .= '<span itemprop="numberOfPages">'.$rec->pages.'</span>';
-				$sechma .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
+				if (!empty($rec->start_page)) {
+					$sechma .= '<span itemprop="pageStart">'.$rec->start_page.'</span>';
+				}
+				if (!empty($rec->end_page)) {
+					$sechma .= '<span itemprop="pageEnd">'.$rec->end_page.'</span>';
+				}
+				if (!empty($rec->publisher_place)) {
+					$sechma .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
+				}
+				if (!empty($rec->publisher)) {
+					$sechma .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
+				}
+				if (!empty($rec->pages)) {
+					$sechma .= '<span itemprop="numberOfPages">'.$rec->pages.'</span>';
+				}
+				if (!empty($rec->issn_isbn)) {
+					$sechma .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
+				}
 				$sechma .= '</span>';
 			$sechma .= '</div>';
 		$sechma .= '</div>';
@@ -896,7 +979,7 @@ class SROSearch {
 			}
 
 			// #ul# #t1# -- The title, linked to somewhere else if there's a URL in the database
-			if (preg_match('/http/', $rec->link)) {
+			if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
 				$ret[] =  '. <a href="'.$rec->link.'">'.$rec->title.'</a>';
 			} else {
 				$ret[] =  '. '.$rec->title;
@@ -905,10 +988,10 @@ class SROSearch {
 			// #jf# -- One of the two following
 			if (!empty($rec->journal)) {
 				// -- The journal name followed by a period, in italics, if provided
-				$ret[] =  ' <em>'.$rec->journal.'</em>,';
+				$ret[] =  ' <em>'.$rec->journal.'</em>';
 			} else {
-				$ret[] =  " in";
 				if (!empty($rec->editor_display)) {
+					$ret[] =  " in";
 					// -- The word "in" followed by the editors followed by a period, if provided, 
 					//    followed by the book title followed by a period in italics, if provided.
 					// QUESTION FOR SUZANNE - Title and book title different?
@@ -1708,10 +1791,7 @@ class SROSearch {
    * to the search server, which goes directly to this function.
    */ 
 	function _execute_query($url, $args) {
-		if (!preg_match('/\/$/', $url)) {
-			$url .= '/';
-		}		
-		if (isset($args['full_query'])) {
+		if (!empty($args['full_query'])) {
 			$query = $args['full_query'];
 		} else {
 			$query = [];
@@ -1719,9 +1799,16 @@ class SROSearch {
 				$query[] = $name.'='.urlencode($val);
 			}
 			$query = implode('&', $query);
+		}	
+		if (count($args) > 0) {
+			if (!preg_match('/\/$/', $url)) {
+				$url .= '/';
+			}
+			$results = file_get_contents($url.'?'.$query);
+			$results = json_decode($results);
+		} else {
+			$results = file_get_contents($url);
 		}
-		$results = file_get_contents($url.'?'.$query);		
-		$results = json_decode($results);
 		return $results;		
 	}
 
@@ -1729,11 +1816,16 @@ class SROSearch {
    * Build the search query to send it to the search API.
    */ 
 	function _do_search($params) {
-		if (isset($_GET['action']) && $_GET['action'] === 'sro_search_results') {
-			// Do the search at SRO in JSON
+		if (!empty($_GET['action']) && $_GET['action'] === 'sro_search_results') {
 
+			// Do the altmetrics search at SRO in CSV
+			if ($params['send_to'] == 'download' && $params['export_format'] == 'altmetrics') {
+				$results = $this->_execute_query($params['server_url'].'/altmetrics_pubs.cfm', array());
+				return $results;
+			}					
+
+			// Do the search at SRO in JSON
 			$results = null;
-			
 			if (!empty($params['search_term']) || !empty($params['dept'])) {
 				$query = array(
 					'search'  => $params['search_term'],
@@ -1757,51 +1849,51 @@ class SROSearch {
 	function _sro_get_departments() {
 		// TODO: This should really be an API Call
 		return array(
-			array('id' => '690000', name => 'Anacostia Community Museum'), 
-			array('id' => '480000', name => 'Archives of American Art'), 
-			array('id' => '710000', name => 'Asian Pacific American Center'), 
-			array('id' => '510000', name => 'Center for Folklife and Cultural Heritage'), 
-			array('id' => '580000', name => 'Cooper-Hewitt National Design Museum'), 
-			array('id' => '540000', name => 'Freer-Sackler Galleries'), 
-			array('id' => '560000', name => 'Hirshhorn Museum and Sculpture Garden'), 
-			array('id' => '640000', name => 'Museum Conservation Institute'), 
-			array('id' => '380000', name => 'National Air and Space Museum'), 
-			array('id' => '382010', name => 'NASM-Aeronautics'), 
-			array('id' => '382020', name => 'NASM-Space History'), 
-			array('id' => '382050', name => 'NASM-CEPS'), 
-			array('id' => '680000', name => 'National Museum of African American History and Culture'), 
-			array('id' => '570000', name => 'National Museum of African Art'), 
-			array('id' => '550000', name => 'National Museum of American History'), 
-			array('id' => '330000', name => 'NMNH'), 
-			array('id' => '331040', name => 'NMNH Encyclopedia of Life'), 
-			array('id' => '332010', name => 'NH-Mineral Science'), 
-			array('id' => '332020', name => 'NH-Anthropology'), 
-			array('id' => '332031', name => 'NH-Invertebrate Zoology'), 
-			array('id' => '332032', name => 'NH-Vertebrate Zoology'), 
-			array('id' => '332033', name => 'NH-Botany'), 
-			array('id' => '332034', name => 'NH-Entomology'), 
-			array('id' => '332040', name => 'NH-Paleobiology'), 
-			array('id' => '332050', name => 'NH-Smithsonian Marine Station'), 
-			array('id' => '500000', name => 'National Museum of the American Indian'), 
-			array('id' => '520000', name => 'National Portrait Gallery'), 
-			array('id' => '301000', name => 'National Postal Museum'), 
-			array('id' => '350000', name => 'National Zoological Park'), 
-			array('id' => '770000', name => 'Office of Policy and Analysis'), 
-			array('id' => '250001', name => 'Office of the Under Secretary for History, Art &amp; Culture'), 
-			array('id' => '110000', name => 'Secretary\'s Cabinet'), 
-			array('id' => '100000', name => 'SI-Other'), 
-			array('id' => '530000', name => 'Smithsonian American Art Museum'), 
-			array('id' => '404000', name => 'Smithsonian Astrophysical Observatory'), 
-			array('id' => '390000', name => 'Smithsonian Environmental Research Center'), 
-			array('id' => '733400', name => 'Smithsonian Gardens'), 
-			array('id' => '170000', name => 'Smithsonian Institution Archives'), 
-			array('id' => '360000', name => 'Smithsonian Latino Center'), 
-			array('id' => '630000', name => 'Smithsonian Institution Libraries'), 
-			array('id' => '340000', name => 'Smithsonian Tropical Research Institute'), 
-			array('id' => '250000', name => 'Arts and Humanities'), 
-			array('id' => '590000', name => 'Science'), 
-			array('id' => '941000', name => 'Smithsonian Institution Scholarly Press'), 
-			array('id' => '960000', name => 'DUSCIS')
+			array('id' => '690000', 'name' => 'Anacostia Community Museum'), 
+			array('id' => '480000', 'name' => 'Archives of American Art'), 
+			array('id' => '710000', 'name' => 'Asian Pacific American Center'), 
+			array('id' => '510000', 'name' => 'Center for Folklife and Cultural Heritage'), 
+			array('id' => '580000', 'name' => 'Cooper-Hewitt National Design Museum'), 
+			array('id' => '540000', 'name' => 'Freer-Sackler Galleries'), 
+			array('id' => '560000', 'name' => 'Hirshhorn Museum and Sculpture Garden'), 
+			array('id' => '640000', 'name' => 'Museum Conservation Institute'), 
+			array('id' => '380000', 'name' => 'National Air and Space Museum'), 
+			array('id' => '382010', 'name' => 'NASM-Aeronautics'), 
+			array('id' => '382020', 'name' => 'NASM-Space History'), 
+			array('id' => '382050', 'name' => 'NASM-CEPS'), 
+			array('id' => '680000', 'name' => 'National Museum of African American History and Culture'), 
+			array('id' => '570000', 'name' => 'National Museum of African Art'), 
+			array('id' => '550000', 'name' => 'National Museum of American History'), 
+			array('id' => '330000', 'name' => 'NMNH'), 
+			array('id' => '331040', 'name' => 'NMNH Encyclopedia of Life'), 
+			array('id' => '332010', 'name' => 'NH-Mineral Science'), 
+			array('id' => '332020', 'name' => 'NH-Anthropology'), 
+			array('id' => '332031', 'name' => 'NH-Invertebrate Zoology'), 
+			array('id' => '332032', 'name' => 'NH-Vertebrate Zoology'), 
+			array('id' => '332033', 'name' => 'NH-Botany'), 
+			array('id' => '332034', 'name' => 'NH-Entomology'), 
+			array('id' => '332040', 'name' => 'NH-Paleobiology'), 
+			array('id' => '332050', 'name' => 'NH-Smithsonian Marine Station'), 
+			array('id' => '500000', 'name' => 'National Museum of the American Indian'), 
+			array('id' => '520000', 'name' => 'National Portrait Gallery'), 
+			array('id' => '301000', 'name' => 'National Postal Museum'), 
+			array('id' => '350000', 'name' => 'National Zoological Park'), 
+			array('id' => '770000', 'name' => 'Office of Policy and Analysis'), 
+			array('id' => '250001', 'name' => 'Office of the Under Secretary for History, Art &amp; Culture'), 
+			array('id' => '110000', 'name' => 'Secretary\'s Cabinet'), 
+			array('id' => '100000', 'name' => 'SI-Other'), 
+			array('id' => '530000', 'name' => 'Smithsonian American Art Museum'), 
+			array('id' => '404000', 'name' => 'Smithsonian Astrophysical Observatory'), 
+			array('id' => '390000', 'name' => 'Smithsonian Environmental Research Center'), 
+			array('id' => '733400', 'name' => 'Smithsonian Gardens'), 
+			array('id' => '170000', 'name' => 'Smithsonian Institution Archives'), 
+			array('id' => '360000', 'name' => 'Smithsonian Latino Center'), 
+			array('id' => '630000', 'name' => 'Smithsonian Institution Libraries'), 
+			array('id' => '340000', 'name' => 'Smithsonian Tropical Research Institute'), 
+			array('id' => '250000', 'name' => 'Arts and Humanities'), 
+			array('id' => '590000', 'name' => 'Science'), 
+			array('id' => '941000', 'name' => 'Smithsonian Institution Scholarly Press'), 
+			array('id' => '960000', 'name' => 'DUSCIS')
 		);
 	}
 }
@@ -1915,8 +2007,10 @@ function _unique_authors($authors) {
 /* ------------------------------ */
 
 /* Add our CSS to the page output */
-wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
-wp_enqueue_style('silibraries-sro');
+function my_scripts() {
+  wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
+  wp_enqueue_style('silibraries-sro');
+}
 
 /* Register our search widgets with an anonymous function that registers the classes we byilt. */
 add_action( 'widgets_init', function() { register_widget('SROSearchWidget');});
@@ -1929,3 +2023,6 @@ add_action( 'template_redirect', array($wpSROSearch, 'download_results') );
 register_activation_hook( __FILE__, 'sro_insert_search_results_page' );
 register_deactivation_hook( __FILE__, 'sro_remove_search_results_page' );
 add_action('wpmu_new_blog', 'sro_insert_search_results_page_new_blog', 10, 6 );
+
+add_action('wp_enqueue_scripts', 'my_scripts');
+
