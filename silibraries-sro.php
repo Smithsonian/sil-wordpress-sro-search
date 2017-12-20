@@ -1035,7 +1035,7 @@ class SROSearch {
 			}
 			// 	 - The DOI linked to the DOI url, if provided.
 			if (!empty($rec->doi)) {
-				$ret[] =  '. <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+				$ret[] =  '. <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 			}
 			// 	 - A period. (to end everything)
 			$ret[] =  '.';
