@@ -429,12 +429,14 @@ class SROSearch {
 				print '<div id="summary">Showing '.$min_this_page."-".$max_this_page.' of about '.$total_recs.' results.</div>';
 			}
 
+			$pagination = null;
 			if ($results->count > $params['perpage']) {
 				$pagination =  PaginationLinks::create(
 					$params['page'], $total_pages, 2, 
-					'<a class="page" href="?action=sro_search_results&q='.urlencode($_GET['q']).'&pg=%d&perpage='.$params['perpage'].'&sort='.$params['sort'].'&limit='.$params['limit'].'&date='.$params['year'].'&dept='.$params['dept'].'">%d</a>',
+					'<a class="page" href="?action=sro_search_results&q=XYZZY&pg=%d&perpage='.$params['perpage'].'&sort='.$params['sort'].'&limit='.$params['limit'].'&date='.$params['year'].'&dept='.$params['dept'].'">%d</a>',
 					'<span class="current">%d</span>'
 				);
+				$pagination = preg_replace('/XYZZY/', urlencode($_GET['q']), $pagination);
 				print '<div id="pagination">'.$pagination.'</div>';
 			}
 
@@ -648,9 +650,10 @@ class SROSearch {
 			$rec[] = (empty($r->pubtype) ? '' : $r->pubtype);
 			$rec[] = (empty($r->title) ? '' : $r->title);
 			$authors = array();
+			
 			if (!empty($r->authors)) {
 				foreach (_unique_authors($r->authors) as $a) {
-					$authors[] = $a->name;
+					$authors[] = $a['name'];
 				}
 			}
 			$rec[] = implode(';', $authors);
