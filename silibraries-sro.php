@@ -847,7 +847,7 @@ class SROSearch {
 		// ------------------------------------------------------------------------------
 		
 		$itemtype = '';
-		$sechma = '';
+		$schema = '';
 		if ($rec->pubtype == 'article') { // and (k1 does not contain 'Book review')
 			$itemtype = 'http://schema.org/ScholarlyArticle';
 		} elseif ($rec->pubtype == 'chapter') {
