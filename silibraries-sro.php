@@ -856,67 +856,67 @@ class SROSearch {
 			$itemtype = 'http://schema.org/Book';
 		}			
 
-		$sechma .= '<div class="schema-dot-org">';
-			$sechma .= '<div itemscope="" itemtype="'.$itemtype.'">';
+		$schema .= '<div class="schema-dot-org">';
+			$schema .= '<div itemscope="" itemtype="'.$itemtype.'">';
 				if (!empty($rec->title)) {
-					$sechma .= '<span property="name">'.$rec->title.'</span>';
+					$schema .= '<span property="name">'.$rec->title.'</span>';
 				}
 				if ($rec->pubtype == 'book') {
 					if (!empty($rec->book_title)) {
-						$sechma .= '<span itemprop="name">'.$rec->book_title.'</span>';
+						$schema .= '<span itemprop="name">'.$rec->book_title.'</span>';
 					}
 				}
 				if (!empty($rec->authors)) {
 					foreach (_unique_authors($rec->authors) as $a) {
-						$sechma .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a['name'].'</span></span>';
+						$schema .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a['name'].'</span></span>';
 					}
 				}
 				if (!empty($rec->editors) && !empty($rec->editors)) {
-						$sechma .= '<span itemscope="" itemtype="http://schema.org/Person">';
-							$sechma .= '<span itemprop="editor">';
+						$schema .= '<span itemscope="" itemtype="http://schema.org/Person">';
+							$schema .= '<span itemprop="editor">';
 								foreach (_unique_authors($rec->editors) as $a) {
-									$sechma .= '<span itemprop="name">'.$a['name'].'</span>';
+									$schema .= '<span itemprop="name">'.$a['name'].'</span>';
 								}
-							$sechma .= '</span>';
-					 $sechma .= '</span>';
+							$schema .= '</span>';
+					 $schema .= '</span>';
 				}
 				if (!empty($rec->date)) {
-					$sechma .= '<span property="datePublished">'.$rec->date.'</span>';
+					$schema .= '<span property="datePublished">'.$rec->date.'</span>';
 				}
 				if (!empty($rec->doi) && !empty($rec->doi)) {
-					$sechma .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
+					$schema .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 				}
-				$sechma .= '<span property="isPartOf" typeof="Periodical">';
+				$schema .= '<span property="isPartOf" typeof="Periodical">';
 				if (!empty($rec->journal)) {
-					$sechma .= '<span property="name">'.$rec->journal.'</span>';
+					$schema .= '<span property="name">'.$rec->journal.'</span>';
 				}
 				if (!empty($rec->volume) && $rec->volume > 0) {
-					$sechma .= 'v. <span property="volumeNumber">'.$rec->volume.'</span>';
+					$schema .= 'v. <span property="volumeNumber">'.$rec->volume.'</span>';
 				}
 				if (!empty($rec->issue) && $rec->issue > 0) {
-					$sechma .= 'No. <span property="issueNumber">'.$rec->issue.'</span>';
+					$schema .= 'No. <span property="issueNumber">'.$rec->issue.'</span>';
 				}
 				if (!empty($rec->start_page)) {
-					$sechma .= '<span itemprop="pageStart">'.$rec->start_page.'</span>';
+					$schema .= '<span itemprop="pageStart">'.$rec->start_page.'</span>';
 				}
 				if (!empty($rec->end_page)) {
-					$sechma .= '<span itemprop="pageEnd">'.$rec->end_page.'</span>';
+					$schema .= '<span itemprop="pageEnd">'.$rec->end_page.'</span>';
 				}
 				if (!empty($rec->publisher_place)) {
-					$sechma .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
+					$schema .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
 				}
 				if (!empty($rec->publisher)) {
-					$sechma .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
+					$schema .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
 				}
 				if (!empty($rec->pages)) {
-					$sechma .= '<span itemprop="numberOfPages">'.$rec->pages.'</span>';
+					$schema .= '<span itemprop="numberOfPages">'.$rec->pages.'</span>';
 				}
 				if (!empty($rec->issn_isbn)) {
-					$sechma .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
+					$schema .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
 				}
-				$sechma .= '</span>';
-			$sechma .= '</div>';
-		$sechma .= '</div>';
+				$schema .= '</span>';
+			$schema .= '</div>';
+		$schema .= '</div>';
 
 
 		$type = 'Other';
@@ -966,7 +966,8 @@ class SROSearch {
 				$ret[] =  '<div class="show_metric altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
 			}
 		}
-		$ret[] =  '<div class="result fa-'.$icon.'" title="'.$type.'">';			
+		$ret[] = $schema;
+		$ret[] .=  '<div class="result fa-'.$icon.'" title="'.$type.'">';			
 			// #a1# -- Author(s) followed by a period
 			if (!empty($rec->author_display)) {
 				$ret[] =  $rec->author_display;
