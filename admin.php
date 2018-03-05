@@ -113,7 +113,7 @@ class SROSettingsPage {
 	 * Print the Section text
 	 */
 	public function print_server_instructions() {
-		print 'Please enter the URL for the SRO Server. (default: http://research.si.edu/search/)';
+		print 'Please enter the URL for the SRO Server. (default: http://staff.research.si.edu/search/)';
 	}
 
 	public function print_query_instructions() {

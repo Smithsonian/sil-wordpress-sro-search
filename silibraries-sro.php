@@ -117,7 +117,7 @@ class SROFixedSearchWidget extends WP_Widget {
 		// This is where you run the code and display the output
 		$options = get_option(
 			'sro_options',
-			array('server_url' => 'http://research.si.edu/search/', 'query_extra' => '')
+			array('server_url' => 'http://staff.research.si.edu/search/', 'query_extra' => '')
 		);
 
 		$json = $wpSROSearch->_execute_query(
@@ -300,7 +300,7 @@ class SROSearch {
 	function _clean_params() {
 		$options = get_option(
 			'sro_options',
-			array('server_url' => 'http://research.si.edu/search/', 'query_extra' => '')
+			array('server_url' => 'http://staff.research.si.edu/search/', 'query_extra' => '')
 		);
 
 		$params = array(
@@ -519,7 +519,7 @@ class SROSearch {
 		$output = array();
 		foreach ($res->records as $r) {
 			$r = $r->reference;
-			if ($r->pubtype == 'article' && $r->pubtype == 'journal') {
+			if ($r->pubtype == 'article' || $r->pubtype == 'journal') {
 				$output[] = 'TY  - JOUR';
 				$first = true;
 				foreach (_unique_authors($r->authors) as $a) {
@@ -969,9 +969,16 @@ class SROSearch {
 		$ret[] = $schema;
 		$ret[] .=  '<div class="result fa-'.$icon.'" title="'.$type.'">';			
 			// #a1# -- Author(s) followed by a period
-			if (!empty($rec->author_display)) {
-				$ret[] =  $rec->author_display;
+			if ($rec->pubtype == 'book_edited') {
+				if (!empty($rec->editor_display)) {
+					$ret[] =  $rec->editor_display;
+				}
+			} else {
+				if (!empty($rec->author_display)) {
+					$ret[] =  $rec->author_display;
+				}
 			}
+			
 			// #yr# -- Date followed by a period
 			if (!empty($rec->date)) {
 				if (!empty($rec->author_display)) {
@@ -982,39 +989,56 @@ class SROSearch {
 				$ret[] =  ' '.$rec->date;
 			}
 
-			// #ul# #t1# -- The title, linked to somewhere else if there's a URL in the database
-			if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
-				$ret[] =  '. <a href="'.$rec->link.'">'.$rec->title.'</a>';
+			if ($rec->pubtype == 'chapter') {
+				// #t1# is the chapter title
+				$ret[] =  '. "'.$rec->title.'"';
+				if (!empty($rec->editor_display)) { 
+					if (!preg_match('/eds\./', $rec->editor_display)) {
+						$rec->editor_display .= ' (eds.)';
+					}
+					$ret[] =  ' in '.$rec->editor_display;
+				} else {
+					$ret[] =  ' in';				
+				}
+				// #ul# #t2# -- The title, linked to somewhere else if there's a URL in the database
+				if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
+					$ret[] =  ' <a href="'.$rec->link.'"><em>'.$rec->book_title.'</em></a>';
+				} else {
+					$ret[] =  ' <em>'.$rec->book_title.'</em>';
+				}
+			} elseif ($rec->pubtype == 'article' || $rec->pubtype == 'magazine_article' || $rec->pubtype == 'newspaper_article') {
+				// #ul# #t1# -- The title, linked to somewhere else if there's a URL in the database
+				if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
+					$ret[] =  '. <a href="'.$rec->link.'">"'.$rec->title.'"</a>';
+				} else {
+					$ret[] =  '. "'.$rec->title.'"';
+				}
+				
 			} else {
-				$ret[] =  '. '.$rec->title;
+				// #ul# #t1# -- The title, linked to somewhere else if there's a URL in the database
+				if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
+					$ret[] =  '. <a href="'.$rec->link.'"><em>'.$rec->title.'</em></a>';
+				} else {
+					$ret[] =  '. <em>'.$rec->title.'</em>';
+				}
 			}
 		
 			// #jf# -- One of the two following
-			if (!empty($rec->journal)) {
-				// -- The journal name followed by a period, in italics, if provided
-				$ret[] =  ' <em>'.$rec->journal.'</em>';
-			} else {
-				if (!empty($rec->editor_display)) {
-					$ret[] =  " in";
-					// -- The word "in" followed by the editors followed by a period, if provided, 
-					//    followed by the book title followed by a period in italics, if provided.
-					// QUESTION FOR SUZANNE - Title and book title different?
-					$ret[] =  ' '.$rec->editor_display;
-					if (!empty($rec->book_title)) {
-						if (!preg_match('/\.$/', $rec->editor_display)) {
-							$ret[] =  '.';
-						}
-						$ret[] =  ' <em>'.$rec->book_title.'</em>.';
-					}
+			if ($rec->pubtype == 'article' || $rec->pubtype == 'magazine_article' || $rec->pubtype == 'newspaper_article') {
+				if (!empty($rec->journal)) {
+					// -- The journal name followed by a period, in italics, if provided
+					$ret[] =  ' <em>'.$rec->journal.'</em>';
 				}
 			}
 			// 	 - Publisher place, followed by a comma.
-			if (!empty($rec->publisher_place)) {
-				$ret[] =  ' '.$rec->publisher_place;
-			}
-			// 	 - Publisher name, followed by a comma.
-			if (!empty($rec->publisher)) {
-				$ret[] =  ', '.$rec->publisher;
+			if ($rec->pubtype != 'article' && $rec->pubtype != 'magazine_article' && $rec->pubtype != 'newspaper_article') {
+				if (!empty($rec->publisher_place)) {
+					$ret[] =  '. '.$rec->publisher_place;
+				}
+				// 	 - Publisher name, followed by a comma.
+				if (!empty($rec->publisher)) {
+					$ret[] =  ', '.$rec->publisher;
+				}
 			}
 			// 	 - Series in parentheses, followed by a period.
 			// QUESTION FOR SUZANNE: Will we ever have series and issue but no volume?
@@ -1794,6 +1818,7 @@ class SROSearch {
    * where we can add the exact parameters for a hardcoded query
    * to the search server, which goes directly to this function.
    */ 
+
 	function _execute_query($url, $args) {
 		if (!empty($args['full_query'])) {
 			$query = $args['full_query'];
@@ -1804,14 +1829,30 @@ class SROSearch {
 			}
 			$query = implode('&', $query);
 		}	
+		$results = null;
+		$ctx = stream_context_create(array( 
+			'http' => array( 
+				'timeout' => 60
+			)
+		)); 
 		if (count($args) > 0) {
 			if (!preg_match('/\/$/', $url)) {
 				$url .= '/';
+			}			
+			try {
+			
+				$results = file_get_contents($url.'?'.$query, false, $ctx);			
+				if ($results === false) {
+					return null;
+				}
+			} catch (Exception $e) {
+				// Handle exception
+				print '<h5 class="error">'.($e->getMessage()).'</h5>';
 			}
-			$results = file_get_contents($url.'?'.$query);
+			
 			$results = json_decode($results);
 		} else {
-			$results = file_get_contents($url);
+			$results = file_get_contents($url, false, $ctx);
 		}
 		return $results;		
 	}
