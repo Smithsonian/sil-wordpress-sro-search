@@ -517,6 +517,10 @@ class SROSearch {
    */ 
 	function _format_ris_results($res) {
 		$output = array();
+		$output[] = 'THE DATA EXPORTED HERE IS LIMITED TO BOOKS, CHAPTERS AND ARTICLES IN THE SRO DATABASE';
+		$output[] = '';
+		$output[] = 'Copy the text below and save it as a *.txt file for importing to EndNote, RefWorks, Reference Manager, Zotero etc.';
+		$output[] = '';
 		foreach ($res->records as $r) {
 			$r = $r->reference;
 			if ($r->pubtype == 'article' || $r->pubtype == 'journal') {
