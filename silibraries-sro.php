@@ -888,7 +888,7 @@ class SROSearch {
 					$schema .= '<span property="datePublished">'.$rec->date.'</span>';
 				}
 				if (!empty($rec->doi) && !empty($rec->doi)) {
-					$schema .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
+					$schema .= 'DOI: <a property="sameAs" href="https://doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 				}
 				$schema .= '<span property="isPartOf" typeof="Periodical">';
 				if (!empty($rec->journal)) {
@@ -1160,7 +1160,7 @@ class SROSearch {
 					}
 					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
 					if (!empty($rec->doi)) {
-						$ret .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
+						$ret .= 'DOI: <a property="sameAs" href="https://doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 					}
 					$ret .= '<span property="isPartOf" typeof="Periodical">';
 					$ret .= '<span property="name">'.$rec->journal.'</span>';
@@ -1212,7 +1212,7 @@ class SROSearch {
 				$ret .= ' '.$rec->pages;
 				// #doi#
 				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 			
@@ -1248,7 +1248,7 @@ class SROSearch {
 				}
 				$ret .= ' '.$rec->pages;
 				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -1320,7 +1320,7 @@ class SROSearch {
 					$ret .= ' pp. '.$rec->pages;
 				}
 				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -1335,7 +1335,7 @@ class SROSearch {
 					}
 					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
 					if (!empty($rec->doi)) {
-						$ret .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
+						$ret .= 'DOI: <a property="sameAs" href="https://doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 					}
 					$ret .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
 					$ret .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
@@ -1380,7 +1380,7 @@ class SROSearch {
 					$ret .= ' '.$rec->pages.' pages.';
 				}
 				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -1419,7 +1419,7 @@ class SROSearch {
 					$ret .= ' '.$rec->pages.' pages.';
 				}
 				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -1791,7 +1791,7 @@ class SROSearch {
 					$ret .= ' '.$rec->publisher.'.';
 				}
 				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
+					$ret .= ' <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
 				}
 			$ret .= '</div>';
 
@@ -1806,7 +1806,7 @@ class SROSearch {
 //        <span class="journal_bold journal_display"><i>#jf#</i></span>,
 // 				if (is_no ge '0' and vo ge '0') {#vo#(#is_no#) } elseif (vo eq ' ' and is_no ge '0') { #is_no# } elseif (vo ge '0' and is_no eq ' ') { #vo#}: #sp#
 // 				if (op ge '0' and op neq sp) {-#op#. } else { }
-// 				if (doi contains '10.') {<a href="http://dx.doi.org/#doi#"> doi:#doi#</a>}<br />
+// 				if (doi contains '10.') {<a href="https://doi.org/#doi#"> doi:#doi#</a>}<br />
 // 			$ret .= '</div>';
 
 
