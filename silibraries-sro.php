@@ -1194,24 +1194,7 @@ class SROSearch {
 		$ret[] =  '</div>';
 		return implode('', $ret);
 	}
-	
-	function _format_authors($authors) {
-      
-    if (count($authors) == 1) {
-      return array_pop($authors);
-
-    } elseif (count($authors) <= 25) {
-      $last_author = array_pop($authors);
-      return implode(', ', $authors).' and '.$last_author;
-       
-    } elseif (count($authors) > 25) {
-      $authors = array_splice($authors, 25);
-      return implode(', ', $authors). ' et al.';
-    } else {
-      return '';
-    }
-	}
-	
+		
   /* 
    * Send the query to the Search API and decode the results. 
    * 
