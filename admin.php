@@ -75,6 +75,20 @@ class SROSettingsPage {
 			'sro-settings', // Page
 			'server_section' // Section		   
 		);	  
+		add_settings_field(
+			'depts_url', // ID
+			'Departments URL', // Title 
+			array( $this, 'depts_callback' ), // Callback
+			'sro-settings', // Page
+			'server_section' // Section		   
+		);	  
+		add_settings_field(
+			'server_altmetrics_url', // ID
+			'Server Altmetrics URL', // Title 
+			array( $this, 'server_altmetrics_callback' ), // Callback
+			'sro-settings', // Page
+			'server_section' // Section		   
+		);	  
 
 
 		add_settings_section(
@@ -103,6 +117,12 @@ class SROSettingsPage {
 		if( isset( $input['server_url'] ) )
 			$new_input['server_url'] = sanitize_text_field($input['server_url']);
 
+		if( isset( $input['depts_url'] ) )
+			$new_input['depts_url'] = sanitize_text_field($input['depts_url']);
+
+		if( isset( $input['server_altmetrics_url'] ) )
+			$new_input['server_altmetrics_url'] = sanitize_text_field($input['server_altmetrics_url']);
+
 		if( isset( $input['query_extra'] ) )
 			$new_input['query_extra'] = sanitize_text_field($input['query_extra']);
 
@@ -113,7 +133,7 @@ class SROSettingsPage {
 	 * Print the Section text
 	 */
 	public function print_server_instructions() {
-		print 'Please enter the URL for the SRO Server. (default: http://staff.research.si.edu/search/)';
+		print 'Please enter the URL for the SRO Server. (default: http://staff.research.si.edu/search-api/publications/)';
 	}
 
 	public function print_query_instructions() {
@@ -127,6 +147,18 @@ class SROSettingsPage {
 		printf(
 			'<input type="text" id="server_url" name="sro_options[server_url]" size="100" value="%s" />',
 			isset( $this->options['server_url'] ) ? esc_attr( $this->options['server_url']) : ''
+		);
+	}
+	public function depts_callback() {
+		printf(
+			'<input type="text" id="depts_url" name="sro_options[depts_url]" size="100" value="%s" />',
+			isset( $this->options['depts_url'] ) ? esc_attr( $this->options['depts_url']) : ''
+		);
+	}
+	public function server_altmetrics_callback() {
+		printf(
+			'<input type="text" id="server_altmetrics_url" name="sro_options[server_altmetrics_url]" size="100" value="%s" />',
+			isset( $this->options['server_altmetrics_url'] ) ? esc_attr( $this->options['server_altmetrics_url']) : ''
 		);
 	}
 

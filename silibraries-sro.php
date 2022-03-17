@@ -7,13 +7,14 @@ Version:     20170727
 Author:      Joel Richard
 Author URI:  https://library.si.edu/staff/joel-richard
 License:     Public Domain
+Version:     1.3
 */
 
+define("SRO_VERSION", "1.3");
 defined( 'ABSPATH' ) or die( 'No script kiddies please!' );
 require_once(ABSPATH . 'wp-admin/includes/template.php');
 require_once(ABSPATH .'wp-content/plugins/silibraries-sro/class.PaginationLinks.php');
 require_once(ABSPATH .'wp-content/plugins/silibraries-sro/admin.php');
-
 
 /* 
  * Create the widget that will allow us to add the search form to the sidebar
@@ -117,7 +118,7 @@ class SROFixedSearchWidget extends WP_Widget {
 		// This is where you run the code and display the output
 		$options = get_option(
 			'sro_options',
-			array('server_url' => 'http://staff.research.si.edu/search/', 'query_extra' => '')
+			array('server_url' => 'http://staff.research.si.edu/search-api/publications/', 'query_extra' => '')
 		);
 
 		$json = $wpSROSearch->_execute_query(
@@ -188,6 +189,8 @@ class SROFixedSearchWidget extends WP_Widget {
  */
 class SROSearch {
 
+  private $current_item = null;
+  
   /* 
    * Initialize and register the shortcode that handles the display of results.
    */ 
@@ -197,6 +200,7 @@ class SROSearch {
 		}
 
 		add_shortcode('sro-search-results', array($this, 'display_results'));
+		add_shortcode('sro-item-details', array($this, 'display_item'));
 	}
 
   /* 
@@ -219,19 +223,22 @@ class SROSearch {
 			$ret .= get_submit_button('Go', 'primary large', null, false);
 		}
 		if ($type == 'advanced') {
-// 			$ret .= "<h4>Advanced Search</h4>";
-			$ret .= '<label class="hidden" for="q">Enter Search Term</label>';
-			$ret .= '<input type="text" id="q" name="q" value="'.esc_attr($query).'" style="width: 60%" placeholder="Enter Search Term" />';
-			$ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
-		}
-		if ($type == 'advanced') {
-			$ret .= '<br><a id="advanced-link" onClick="sroToggleAdvancedSearch();">Advanced Search</a>';
+      $ret .= '<div id="search-wrap">';
+        $ret .= '<div id="search-field">';
+          $ret .= '<label class="hidden" for="q">Enter Search Term</label>';
+          $ret .= '<input type="text" id="q" name="q" value="'.esc_attr($query).'" placeholder="Enter Search Term" />';
+          $ret .= '&nbsp;'.get_submit_button('Go', 'primary large', null, false);
+        $ret .= '</div>';
+        $ret .= '<div id="exact-wrapper"><input type="checkbox" id="exact" value="1" name="exact" '.($params['exact'] ? 'checked=""' : '').'>&nbsp;<label for="exact">Exact Phrase</label></div>';
+        $ret .= '<div><a id="advanced-link" onClick="return sroToggleAdvancedSearch();">Advanced Search</a></div>';
+      $ret .= '</div>';
 			$hide = true;
+
 			if (!empty($params['advanced']) ||
 			    !empty($params['limit']) || 
-			    !empty($params['year']) || 
+			    !empty($params['date']) || 
 			    !empty($params['dept']) || 
-			    (!empty($params['sort']) && $params['sort'] != 'published') || 
+			    (!empty($params['sort']) && $params['sort'] != 'relevance') || 
 			    (!empty($params['send_to']) && $params['send_to'] != 'screen')){
 				$hide = false;
 			}
@@ -240,31 +247,22 @@ class SROSearch {
 				$ret .= '<div class="criteria">';
 					$ret .= '<label for="limit">Limit&nbsp;Search&nbsp;Term&nbsp;to:</label>&nbsp;';
 					$ret .= '<select id="limit" name="limit">';
-						$ret .= '<option value="">(none)</option>';
+						$ret .= '<option value=""'.($params['limit'] == '' ? ' selected' : '').'>(none)</option>';
 						$ret .= '<option value="author"'.($params['limit'] == 'author' ? ' selected' : '').'>Author Name</option>';
 						$ret .= '<option value="author_id"'.($params['limit'] == 'author_id' ? ' selected' : '').'>Author ID</option>';
 						$ret .= '<option value="journal"'.($params['limit'] == 'journal' ? ' selected' : '').'>Journal Title</option>';
 					$ret .= '</select>';
 					$ret .= '&nbsp;&nbsp;&nbsp; ';
 					$ret .= '<label for="date">Limit&nbsp;by&nbsp;date:</label>&nbsp;';
-					$ret .= '<input id="date" name="date" maxlength="4" size="4" value="'.esc_attr($params['year']).'">';
-					$ret .= '&nbsp;&nbsp;&nbsp; ';
+					$ret .= '<input id="date" name="date" maxlength="4" size="4" value="'.esc_attr($params['date']).'">';
+					$ret .= '<br>';
 					$ret .= '<label for="date">Limit&nbsp;to&nbsp;Museum&nbsp;or&nbsp;Department:</label>&nbsp;';
 					$ret .= '<select name="dept" id="dept">';
-						$ret .= '<option value="" selected="selected">All</option>';
+						$ret .= '<option value="">All</option>';
 						$opts = $this->_sro_get_departments();
 						foreach ($opts as $o) {
-							$ret .= '<option value="'.$o['id'].'"'.($params['dept'] == $o['id'] ? ' selected' : '').'>'.$o['name'].'</option>';
+							$ret .= '<option value="'.$o['dept_code'].'"'.($params['dept'] == $o['dept_code'] ? ' selected' : '').'>'.$o['name'].'</option>';
 						}
-					$ret .= '</select>';
-				$ret .= '</div>';
-				$ret .= '<div class="criteria">';
-					$ret .= '<label for="sort">Sort&nbsp;results&nbsp;by:</label>&nbsp;';
-					$ret .= '<select id="sort" name="sort"> ';
-						$ret .= '<option value="published">Date Published</option>';
-						$ret .= '<option value="author"'.($params['sort'] == 'author' ? ' selected' : '').'>Author Name</option>';
-						$ret .= '<option value="journal"'.($params['sort'] == 'journal' ? ' selected' : '').'>Journal Name</option>';
-						$ret .= '<option value="added"'.($params['sort'] == 'added' ? ' selected' : '').'>Date Added</option>';
 					$ret .= '</select>';
 				$ret .= '</div>';
 				$ret .= '<div class="criteria export">';
@@ -274,17 +272,48 @@ class SROSearch {
 						$ret .= '<option value="download"'.($params['send_to'] == 'download' ? ' selected' : '').'>Download</option>';
 					$ret .= '</select>';
 					$ret .= '&nbsp;&nbsp;&nbsp; ';
-					$ret .= '<label for="export_format">Export&nbsp;Format:</label>&nbsp;';
+					$ret .= '<label for="export_format">Download&nbsp;Format:</label>&nbsp;';
 					$ret .= '<select id="export_format" name="export_format">';
-						$ret .= '<option value="json">JSON</option>';
+						$ret .= '<option value="json"'.($params['export_format'] == 'json' ? ' selected' : '').'>JSON</option>';
 						$ret .= '<option value="csv"'.($params['export_format'] == 'csv' ? ' selected' : '').'>Comma-Separated (CSV)</option>';
 						$ret .= '<option value="ris"'.($params['export_format'] == 'ris' ? ' selected' : '').'>RIS (Zotero, Mendeley, etc)</option>';
-// 						$ret .= '<option value="text"'.($_GET['export_format'] == 'text' ? ' selected' : '').'>Text Citation</option>';
 					$ret .= '</select>';
 				$ret .= '</div>';
 			$ret .= '</div>';
 		}
 		$ret .= '</form>';
+		return $ret;
+	}
+
+	public function get_results_form() {
+	
+		$params = $this->_clean_params();
+		
+		$ret = '<form name="sro_search" method="GET" action="/publications/" id="sro_results_search">';
+		$ret .= '<input type="hidden" name="action" value="sro_search_results">';
+    $ret .= '<input type="hidden" id="q" name="q" value="'.esc_attr($params['search_term']).'" />';
+    $ret .= '<input type="hidden" id="limit" name="limit" value="'.esc_attr($params['limit']).'" />';
+    $ret .= '<input type="hidden" id="date" name="date" value="'.esc_attr($params['date']).'" />';
+    $ret .= '<input type="hidden" id="dept" name="dept" value="'.esc_attr($params['dept']).'" />';
+    $ret .= '<input type="hidden" id="send_to" name="send_to" value="'.esc_attr($params['send_to']).'" />';
+    $ret .= '<input type="hidden" id="export_format" name="export_format" value="'.esc_attr($params['export_format']).'" />';
+    $ret .= '<input type="hidden" id="page" name="page" value="'.esc_attr($params['page']).'" />';
+    $ret .= '<label for="sort">Sort By:</label> <select id="sort" name="sort" onChange="return reloadPage();"> ';
+      $ret .= '<option value="relevance"'.($params['sort'] == 'relevance' ? ' selected' : '').'>Relevance</option>';
+      $ret .= '<option value="published"'.($params['sort'] == 'published' ? ' selected' : '').'>Date Published</option>';
+      $ret .= '<option value="author"'.($params['sort'] == 'author' ? ' selected' : '').'>Author Name</option>';
+      $ret .= '<option value="journal"'.($params['sort'] == 'journal' ? ' selected' : '').'>Journal Name</option>';
+      $ret .= '<option value="added"'.($params['sort'] == 'added' ? ' selected' : '').'>Date Added</option>';
+    $ret .= '</select> ';
+    $ret .= '<label for="perpage">Items Per Page:</label> <select id="perpage" name="perpage" onChange="return reloadPage();"> ';
+      $ret .= '<option value="5"'.($params['perpage'] == '5' ? ' selected' : '').'>5</option>';
+      $ret .= '<option value="20"'.($params['perpage'] == '20' ? ' selected' : '').'>20</option>';
+      $ret .= '<option value="50"'.($params['perpage'] == '50' ? ' selected' : '').'>50</option>';
+      $ret .= '<option value="100"'.($params['perpage'] == '100' ? ' selected' : '').'>100</option>';
+      $ret .= '<option value="250"'.($params['perpage'] == '250' ? ' selected' : '').'>250</option>';
+    $ret .= '</select>';
+		$ret .= '</form>';
+
 		return $ret;
 	}
 	
@@ -300,16 +329,17 @@ class SROSearch {
 	function _clean_params() {
 		$options = get_option(
 			'sro_options',
-			array('server_url' => 'http://staff.research.si.edu/search/', 'query_extra' => '')
+			array('server_url' => 'http://staff.research.si.edu/search-api/publications/', 'query_extra' => '')
 		);
 
 		$params = array(
 			'search_term' => null,
 			'advanced' => false,
 			'limit' => null,
-			'year' => null,
+			'exact' => null,
+			'date' => null,
 			'dept' => null,
-			'sort' => 'published',
+			'sort' => 'relevance',
 			'send_to' => 'screen',
 			'export_format' => 'json',
 			'perpage' => 20,
@@ -318,6 +348,9 @@ class SROSearch {
 			'query_extra' => $options['query_extra'],
 		);
 
+		if (!isset($_GET['q'])) {
+			$_GET['q'] = null;
+		}
 		if (!empty($_GET['q'])) {
 			$params['search_term'] = trim($_GET['q']);
 		}		
@@ -325,24 +358,28 @@ class SROSearch {
 		if (!empty($_GET['advanced'])) {
 			$params['advanced'] = ($_GET['advanced'] ? true : false);
 		}		
+
+		if (!empty($_GET['exact'])) {
+			$params['exact'] = ($_GET['exact'] ? '1' : '');
+		}		
 		
 		if (!empty($_GET['limit']) && $_GET['limit']) {
-			if (in_array($_GET['limit'], array('author', 'auhtor_id', 'journal'))) {
+			if (in_array($_GET['limit'], array('author', 'author_id', 'journal'))) {
 				$params['limit'] = $_GET['limit']; // It has to be one of these values
 			}
 		}
 		
 		if (!empty($_GET['year']) && $_GET['year']) {
-			$params['year'] = (int)$_GET['year']; // Cast to int to sanitize
+			$params['date'] = (int)$_GET['date']; // Cast to int to sanitize
 		} elseif (!empty($_GET['date']) && $_GET['date']) {
-			$params['year'] = (int)$_GET['date']; // Cast to int to sanitize
+			$params['date'] = (int)$_GET['date']; // Cast to int to sanitize
 		}
 
 		if (!empty($_GET['dept']) && $_GET['dept']) {
 			$opts = $this->_sro_get_departments();
 			foreach ($opts as $o) {
-				if ($_GET['dept'] == $o['id']) {
-					$params['dept'] = $o['id'];
+				if ($_GET['dept'] == $o['dept_code']) {
+					$params['dept'] = $o['dept_code'];
 					break;
 				}
 			}
@@ -384,21 +421,13 @@ class SROSearch {
   /*
    *  Print the results to the browser page 
    */
-	function display_results() {
+	function display_results() { 
 		$params = $this->_clean_params();
 		
 		$results = $this->_do_search($params);
 
-		wp_register_style('silibraries-sro-fa-reg', plugins_url('/css/font-awesome-regular.css', __FILE__));
-		wp_enqueue_style('silibraries-sro-fa-reg');
-		wp_register_style('silibraries-sro-fa-core', plugins_url('/css/font-awesome-core.css', __FILE__));
-		wp_enqueue_style('silibraries-sro-fa-core');
-		wp_register_style('silibraries-sro-fa-light', plugins_url('/css/font-awesome-light.css', __FILE__));
-		wp_enqueue_style('silibraries-sro-fa-light');
-		wp_register_style('silibraries-sro-fa-solid', plugins_url('/css/font-awesome-solid.css', __FILE__));
-		wp_enqueue_style('silibraries-sro-fa-solid');
-		wp_register_style('silibraries-sro-fa-solid', plugins_url('/css/font-awesome-solid.css', __FILE__));
-		wp_enqueue_style('silibraries-sro-fa-solid');
+		wp_register_style('silibraries-sro-fa-all', plugins_url('/assets/font-awesome/css/all.min.css', __FILE__), array(), SRO_VERSION);
+		wp_enqueue_style('silibraries-sro-fa-all');
 		
 		wp_register_script('sro-js', plugins_url('/js/silibraries-sro.js', __FILE__));
 		wp_enqueue_script('sro-js');
@@ -412,7 +441,7 @@ class SROSearch {
 
 			// Print the output, includes all the components to make a full poage.
 			print '<div id="sro">';
-			print "<h2>Search Results</h2>";				
+			print '<h2>Search Results<div class="spinner"></div></h2>';
 
 			// Calculate the pages and records and stuff for pagination
 			$total_recs = $results->count;
@@ -426,6 +455,7 @@ class SROSearch {
 			if ($total_recs == 0) {
 				print '<div id="summary">No results were found.</div>';				
 			} else {
+				print $this->get_results_form();
 				print '<div id="summary">Showing '.$min_this_page."-".$max_this_page.' of about '.$total_recs.' results.</div>';
 			}
 
@@ -433,7 +463,7 @@ class SROSearch {
 			if ($results->count > $params['perpage']) {
 				$pagination =  PaginationLinks::create(
 					$params['page'], $total_pages, 2, 
-					'<a class="page" href="?action=sro_search_results&q=XYZZY&pg=%d&perpage='.$params['perpage'].'&sort='.$params['sort'].'&limit='.$params['limit'].'&date='.$params['year'].'&dept='.$params['dept'].'">%d</a>',
+					'<a class="page" href="?action=sro_search_results&q=XYZZY&pg=%d&perpage='.$params['perpage'].'&sort='.$params['sort'].'&limit='.$params['limit'].'&date='.$params['date'].'&dept='.$params['dept'].'">%d</a>',
 					'<span class="current">%d</span>'
 				);
 				$pagination = preg_replace('/XYZZY/', urlencode($_GET['q']), $pagination);
@@ -446,7 +476,95 @@ class SROSearch {
 			print '</div>';
 		}
 	}
-	
+
+  function _set_page_title($title, $post_id = null) {
+
+    // Admin area, bail out
+    if( is_admin() )
+        return $title;
+
+    // We only care about one page
+    if ($post_id == null) {
+      $post_id = get_queried_object_id();
+    }
+    if ($post_id) {
+      $current_url = get_permalink( $post_id );
+      if (preg_match('/publication-details/', $current_url)) {
+        $item = $this->_get_current_item();
+        if ($item) {
+          return $item->title;    
+        }
+      }
+    }
+
+    return $title;
+  }
+
+  function _get_current_item() {
+    if ($this->current_item) {
+      return $this->current_item;
+    }
+	  $id = 0;
+
+    global $wp;
+    $current_url = home_url( add_query_arg( array(), $wp->request ) );
+    $url = explode('/', $current_url);
+    
+    if (preg_match('/^[0-9]+$/',end($url))) {
+      $id = (int)end($url);
+    } elseif (isset($_GET['id'])) {
+      $id = (int)trim($_GET['id']);
+	  }
+	  
+    if (!$id) {
+      return null;
+    }
+    
+		$options = get_option(
+			'sro_options',
+			array('server_url' => 'http://staff.research.si.edu/search-api/publications/', 'query_extra' => '')
+		);
+		// Cold Fusion is 
+		$id = intval($id & 0xfffffff);
+		$query = array('search' => $id); 
+		$results = $this->_execute_query($options['server_url'], $query);
+
+		if ($results) {
+			// Calculate the pages and records and stuff for pagination
+			if ($results->count > 0) {
+    		foreach ($results->records as $r) {
+    		  $this->current_item = $r->reference;
+    		  return $this->current_item;
+        }  
+      }
+    }
+  	return null;
+  }	
+  
+	function display_item() {
+  
+    $item = $this->_get_current_item();
+    if (!$item) {
+      print '<div id="summary">No ID was supplied.</div>';
+      return;
+    }
+
+		wp_register_style('silibraries-sro-fa-all', plugins_url('/assets/font-awesome/css/all.min.css', __FILE__), array(), SRO_VERSION);
+		wp_enqueue_style('silibraries-sro-fa-all');
+		
+		wp_register_script('sro-js', plugins_url('/js/silibraries-sro.js', __FILE__));
+		wp_enqueue_script('sro-js');
+		
+		wp_register_script('altmetric', 'https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js');
+		wp_enqueue_script('altmetric');
+		    
+    print '<div id="sro">';
+    print '<div id="results">';
+    print $this->_format_html_entry($item, true);
+    print '</div>';
+    print '</div>';
+	}
+
 	/* 
 	 * Export the results to a file and make the browser download it. 
 	 * This is called by the api hook for 'template_redirect' because we need to
@@ -460,7 +578,6 @@ class SROSearch {
 		if (is_page('publications') && $params['send_to'] == 'download') {
 
 			$results = $this->_do_search($params);
-
 			$output = null;
 			$filename = null;
 
@@ -523,11 +640,11 @@ class SROSearch {
 		$output[] = '';
 		foreach ($res->records as $r) {
 			$r = $r->reference;
-			if ($r->pubtype == 'article' || $r->pubtype == 'journal') {
+			if ($r->item_type == 'article' || $r->item_type == 'journal') {
 				$output[] = 'TY  - JOUR';
 				$first = true;
 				foreach (_unique_authors($r->authors) as $a) {
-					$output[] = ($first ? 'A1' : 'AU').'  - '.$a->name;
+					$output[] = ($first ? 'A1' : 'AU').'  - '.$a['name'];
 					$first = false;
 				}
 				$output[] = 'JF  - '.$r->journal;
@@ -547,7 +664,7 @@ class SROSearch {
 				if ($r->date) {
 					$output[] = 'PY  - '.$r->date;
 				}
-				foreach (explode(';', $r->keywords) as $k) {
+				foreach ($r->keywords as $k) {
 					$output[] = 'KW  - '.trim($k);				
 				}
 				if ($r->link && strpos(strtolower($r->link), 'http')) {
@@ -560,7 +677,7 @@ class SROSearch {
 				$output[] = 'U2  - '.date('Y/m/d', strtotime($r->date_added));
 				$output[] = 'ER  - ';
 			
-			} elseif ($r->pubtype == 'chapter') {
+			} elseif ($r->item_type == 'chapter') {
 				$output[] = 'TY  - CHAP';
 				$first = true;
 				foreach (_unique_authors($r->authors) as $a) {
@@ -596,7 +713,7 @@ class SROSearch {
 				$output[] = 'U2  - '.date('Y/m/d', strtotime($r->date_added));
 				$output[] = 'ER  - ';
 
-			} elseif ($r->pubtype == 'book') {
+			} elseif ($r->item_type == 'book') {
 				$output[] = 'TY  - BOOK';
 				$first = true;
 				foreach (_unique_authors($r->authors) as $a) {
@@ -644,14 +761,14 @@ class SROSearch {
    */ 
 	function _format_csv_results($res) {
 		$output = '';
-		$header = array('pubtype', 'title', 'authors', 'editors', 'journal', 'book_title', 'series', 'smithsonian_author_id', 
+		$header = array('item_type', 'title', 'authors', 'editors', 'journal', 'book_title', 'series', 'smithsonian_author_id', 
 		                'orcid', 'volume', 'issue', 'pages', 'start_page', 'end_page', 'publisher', 'publisher_place', 
-		                'date', 'link', 'doi', 'issn_isbn', 'keywords', 'acknowledgement', 'funders', 'date_added', 'id');
+		                'year', 'link', 'doi', 'issn_isbn', 'keywords', 'acknowledgement', 'funders', 'date_added', 'id');
 		$output .= str_putcsv($header);
 		foreach ($res->records as $r) {
 			$rec = array();
 			$r = $r->reference;
-			$rec[] = (empty($r->pubtype) ? '' : $r->pubtype);
+			$rec[] = (empty($r->item_type) ? '' : $r->item_type);
 			$rec[] = (empty($r->title) ? '' : $r->title);
 			$authors = array();
 			
@@ -680,11 +797,11 @@ class SROSearch {
 			$rec[] = (empty($r->end_page) ? '' : $r->end_page);
 			$rec[] = (empty($r->publisher) ? '' : $r->publisher);
 			$rec[] = (empty($r->publisher_place) ? '' : $r->publisher_place);
-			$rec[] = (empty($r->date) ? '' : $r->date);
+			$rec[] = (empty($r->year) ? '' : $r->year);
 			$rec[] = (empty($r->link) ? '' : $r->link);
 			$rec[] = (empty($r->doi) ? '' : $r->doi);
 			$rec[] = (empty($r->issn_isbn) ? '' : $r->issn_isbn);
-			$rec[] = (empty($r->keywords) ? '' : $r->keywords);
+			$rec[] = (empty($r->keywords) ? '' : implode(', ',$r->keywords));
 			$rec[] = (empty($r->acknowledgement) ? '' : $r->acknowledgement);
 			$funders = array();
 			if (!empty($r->funders)) {
@@ -736,19 +853,68 @@ class SROSearch {
   /* 
    * Formall all results for displaying on a webpage
    */ 
-	function _format_html_results($res, $perpage, $extras = false) {
+	function _format_html_results($res, $perpage = 20, $extras = false) {
 		$ret = '';
 		$c = 1;
 		$ret .= '<div id="results">';
 		foreach ($res->records as $r) {
 			$ret .= $this->_format_html_entry($r->reference, $extras);
 			$c++;
-			if ($c > $perpage) {
-				break;
+			if ($perpage > 0) {
+				if ($c > $perpage) {
+					break;
+				}
 			}
 		}
 		$ret .= '</div>';
 		return $ret;
+	}	
+
+	/* 
+   * Formall all results for sending to RSS
+   */ 
+	function _format_rss_results($res) {
+		$ret = [];
+
+		$ret[] = '<?xml version="1.0" encoding="UTF-8"?>';
+		$ret[] = '<rss version="2.0" xmlns:content="http://purl.org/rss/1.0/modules/content/" xmlns:wfw="http://wellformedweb.org/CommentAPI/" xmlns:dc="http://purl.org/dc/elements/1.1/" xmlns:atom="http://www.w3.org/2005/Atom" xmlns:sy="http://purl.org/rss/1.0/modules/syndication/" xmlns:slash="http://purl.org/rss/1.0/modules/slash/">';
+		$ret[] = '  <channel>';
+		$ret[] = '    <title>Recent Additions to Smithsonian Research Online</title>';
+		$ret[] = '    <link>https://research.si.edu/</link>';
+		$ret[] = '    <description></description>';
+		$ret[] = '    <language>en-us</language>';
+		$ret[] = '    <managingEditor>Research-Online@si.edu (Smithsonian Research Online)</managingEditor>';
+		$ret[] = '    <atom:link href="https://research.si.edu/feed/latest-publications" rel="self" type="application/rss+xml" />';
+		$ret[] = '    <sy:updatePeriod>'.apply_filters( 'rss_update_period', 'daily' ).'</sy:updatePeriod>';
+		$ret[] = '    <sy:updateFrequency>1</sy:updateFrequency>';
+      
+		date_default_timezone_set('EST');
+		foreach ($res->records as $r) {
+			$r = $r->reference;
+			$date = strtotime($r->date_submitted.' EST'); // Use the accessioned date if we have it
+			if (!$date) {
+				$date = strtotime($r->date_added.' EST'); // Use the database date if we have it
+			}
+			if (!$date) {
+				$date = time(); // We MUST have a date, so... use the current time.
+			}
+
+		  $ret[] = '    <item>';
+			$ret[] = '      <title>'.$r->title.'</title>';
+			if (isset($r->doi)) {
+				$ret[] = '      <link>https://doi.org/'.$r->doi.'</link>';
+			} elseif (isset($r->url)) {
+				$ret[] = '      <link>'.$r->url.'</link>';
+			}
+			$ret[] = '      <description><![CDATA['.htmlspecialchars($r->citation, ENT_QUOTES | ENT_XML1, 'UTF-8', true).']]></description>';
+		  $ret[] = '      <pubDate>'.date("r", $date).'</pubDate>';
+		  $ret[] = '      <guid isPermaLink="false">sro_id:'.$r->id.'</guid>';
+		  $ret[] = '    </item>';
+		}
+		$ret[] = '  </channel>';
+		$ret[] = '</rss>';
+
+		return implode("\n", $ret)."\n";
 	}	
 
   /* 
@@ -760,7 +926,7 @@ class SROSearch {
    * This just encapsultates a lot of code that would otherwise
    * make the _format_html_results() messier.
    */ 
-	function _format_html_entry($rec, $include_extras = false) {
+	function _format_html_entry($rec, $include_extras = false, $include_schema = true) {
 		$ret = array();
 		$coins = array();
 		$coins[] = 'url_ver=Z39.88-2004';
@@ -771,14 +937,14 @@ class SROSearch {
 				$coins[] = 'rft.au='.urlencode($a['name']);
 			}
 		}
-		$coins[] = 'rft.date='.urlencode($rec->date);
+		$coins[] = 'rft.date='.urlencode($rec->year);
 
 		// Normalization
 		if (!empty($rec->title)) {
 			$rec->title = preg_replace('/<[^>].*>/', '', $rec->title);
 		}
 		if ($include_extras) {
-			if ($rec->pubtype == 'article') {
+			if ($rec->item_type == 'article') {
 				// COinS DATA FOR ZOTERO IMPORT
 				if (!empty($rec->doi) && !empty($rec->doi)) {
 					$coins[] = 'rft_id=info%3Adoi%2F'.urlencode($rec->doi);
@@ -812,7 +978,7 @@ class SROSearch {
 				if (!empty($rec->issn) && !empty($rec->issn)) {
 					$coins[] = 'rft.issn='.urlencode($rec->issn);
 				}
-			} elseif ($rec->pubtype == 'chapter') {
+			} elseif ($rec->item_type == 'chapter') {
 				if (!empty($rec->isbn)) {
 					$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
 				}
@@ -831,7 +997,7 @@ class SROSearch {
 				if (!empty($rec->pages)) {
 					$coins[] = 'rft.pages='.urlencode($rec->pages);
 				}
-			} elseif ($rec->pubtype == 'book') {
+			} elseif ($rec->item_type == 'book') {
 				if (!empty($rec->isbn)) {
 					$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
 				}
@@ -852,11 +1018,11 @@ class SROSearch {
 		
 		$itemtype = '';
 		$schema = '';
-		if ($rec->pubtype == 'article') { // and (k1 does not contain 'Book review')
+		if ($rec->item_type == 'article') { // and (k1 does not contain 'Book review')
 			$itemtype = 'http://schema.org/ScholarlyArticle';
-		} elseif ($rec->pubtype == 'chapter') {
+		} elseif ($rec->item_type == 'chapter') {
 			$itemtype = 'http://schema.org/Chapter';
-		} elseif ($rec->pubtype == 'book')  {
+		} elseif ($rec->item_type == 'book')  {
 			$itemtype = 'http://schema.org/Book';
 		}			
 
@@ -865,7 +1031,7 @@ class SROSearch {
 				if (!empty($rec->title)) {
 					$schema .= '<span property="name">'.$rec->title.'</span>';
 				}
-				if ($rec->pubtype == 'book') {
+				if ($rec->item_type == 'book') {
 					if (!empty($rec->book_title)) {
 						$schema .= '<span itemprop="name">'.$rec->book_title.'</span>';
 					}
@@ -888,7 +1054,7 @@ class SROSearch {
 					$schema .= '<span property="datePublished">'.$rec->date.'</span>';
 				}
 				if (!empty($rec->doi) && !empty($rec->doi)) {
-					$schema .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
+					$schema .= 'DOI: <a property="sameAs" href="https://doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
 				}
 				$schema .= '<span property="isPartOf" typeof="Periodical">';
 				if (!empty($rec->journal)) {
@@ -924,897 +1090,128 @@ class SROSearch {
 
 
 		$type = 'Other';
-		$icon = 'question-circle';
-		if ($rec->pubtype == 'article') { $type = 'Article'; $icon = 'file-alt'; } 
-		elseif ($rec->pubtype == 'ejournal_article') { $type = 'E-Journal Article'; $icon = 'file-pdf'; } 
-		elseif ($rec->pubtype == 'chapter') { $type = 'Book Chapter'; $icon = 'bookmark'; } 
-		elseif ($rec->pubtype == 'book') { $type = 'Book'; $icon = 'book'; } 
-		elseif ($rec->pubtype == 'book_edited') { $type = 'Book, Edited'; $icon = 'book'; } 
-		elseif ($rec->pubtype == 'thesis') { $type = 'Thesis'; $icon = 'file-edit'; } 
-		elseif ($rec->pubtype == 'web_page') { $type = 'Web Page'; $icon = 'globe'; } 
-		elseif ($rec->pubtype == 'magazine_article') { $type = 'Magazine Article'; $icon = 'file'; } 
-		elseif ($rec->pubtype == 'video_dvd') { $type = 'Video/DVD'; $icon = 'video'; } 
-		elseif ($rec->pubtype == 'audio') { $type = 'Audio Recording'; $icon = 'volume-up'; } 
-		elseif ($rec->pubtype == 'report') { $type = 'Report'; $icon = 'list-alt'; } 
-		elseif ($rec->pubtype == 'newspaper_article') { $type = 'Newspaper Article'; $icon = 'newspaper'; } 
-		elseif ($rec->pubtype == 'motion_picture') { $type = 'Motion Picture'; $icon = 'film'; } 
-		elseif ($rec->pubtype == 'monograph') { $type = 'Monograph'; $icon = 'book'; } 
-		elseif ($rec->pubtype == 'map') { $type = 'Map'; $icon = 'map'; } 
-		elseif ($rec->pubtype == 'artwork') { $type = 'Artwork'; $icon = 'image'; } 
-		elseif ($rec->pubtype == 'abstract') { $type = 'Abstract'; $icon = 'align-justify'; } 
-		elseif ($rec->pubtype == 'forum_blog') { $type = 'Forum/Blog Post'; $icon = 'comments'; } 
-		elseif ($rec->pubtype == 'generic') { $type = 'Generic'; $icon = 'rectangle-portrait'; } 
+		$icon = 'fa-question-circle';
+		if ($rec->item_type == 'abstract')               { $type = 'Abstract';               $icon = 'fa-align-justify'; } 
+		elseif ($rec->item_type == 'forum_blog')         { $type = 'Forum/Blog Post';        $icon = 'fa-comments'; } 
+		elseif ($rec->item_type == 'blog')               { $type = 'Forum/Blog Post';        $icon = 'fa-comments'; } 
+		elseif ($rec->item_type == 'book')               { $type = 'Book';                   $icon = 'fa-book'; } 
+		elseif ($rec->item_type == 'chapter')            { $type = 'Book Chapter';           $icon = 'fa-bookmark'; } 
+		elseif ($rec->item_type == 'book_review')        { $type = 'Book Review';            $icon = 'fa-book-reader'; }
+		elseif ($rec->item_type == 'computer_program')   { $type = 'Computer Program';       $icon = 'fa-laptop-code'; }
+		elseif ($rec->item_type == 'conference')         { $type = 'Conference Proceedings'; $icon = 'fa-users-class'; } 
+		elseif ($rec->item_type == 'dataset')            { $type = 'Dataset';                $icon = 'fa-database'; } 
+		elseif ($rec->item_type == 'thesis')             { $type = 'Thesis';                 $icon = 'fa-file-edit'; } 
+		elseif ($rec->item_type == 'exhibition_catalog') { $type = 'Exhibition Catalog';     $icon = 'fa-file-invoice'; }
+		elseif ($rec->item_type == 'article')            { $type = 'Article';                $icon = 'fa-file-alt'; } 
+		elseif ($rec->item_type == 'magazine_article')   { $type = 'Magazine Article';       $icon = 'fa-file'; } 
+		elseif ($rec->item_type == 'map')                { $type = 'Map';                    $icon = 'fa-map'; } 
+		elseif ($rec->item_type == 'newspaper_article')  { $type = 'Newspaper Article';      $icon = 'fa-newspaper'; } 
+		elseif ($rec->item_type == 'patent')             { $type = 'Patent';                 $icon = 'fa-file-certificate'; }
+		elseif ($rec->item_type == 'poster')             { $type = 'Poster';                 $icon = 'fa-user-chart'; }
+		elseif ($rec->item_type == 'presentation')       { $type = 'Presentation';           $icon = 'fa-presentation'; } 
+		elseif ($rec->item_type == 'report')             { $type = 'Report';                 $icon = 'fa-list-alt'; } 
+		elseif ($rec->item_type == 'sound_recording')    { $type = 'Sound Recording';        $icon = 'fa-volume-up'; } 
+		elseif ($rec->item_type == 'video_dvd')          { $type = 'Video/DVD';              $icon = 'fa-video'; } 
+		elseif ($rec->item_type == 'web_page')           { $type = 'Web Page';               $icon = 'fa-globe'; } 
+		elseif ($rec->item_type == 'motion_picture')     { $type = 'Motion Picture';         $icon = 'fa-film'; } 
+		elseif ($rec->item_type == 'artwork')            { $type = 'Artwork';                $icon = 'fa-image'; } 
+		elseif ($rec->item_type == 'exhibition')         { $type = 'Exhibition';             $icon = 'fa-landmark'; } 
+		elseif ($rec->item_type == 'generic')            { $type = 'Generic';                $icon = 'fa-rectangle-portrait'; } 
 
-	// 	From Suzanne: 
-	// 		author_display. date. <ACTIONABLE LINK the words in title> title. [journal]<OR>[in [editor_display}. book_title]. publisher_place, publisher, (series). volume(issue):start_page-end_page. doi<ACTIONABLE DOI>
-	// 	
-	// 	My interpretation
-	// 	 - Author(s) followed by a period.
-	// 	 - Date followed by a period. (what format? year? Month/year? Whatever's in the database?)=
-	// 	 - The title, linked to somewhere else if there's a URL in the database.
-	// 	 - One of the two following:
-	// 		- The journal name followed by a period, in italics, if provided 
-	// 		- The word "in" followed by the editors followed by a period, if provided, followed by the book title followed by a period in italics, if provided.
-	// 	 - Publisher place, followed by a comma.
-	// 	 - Publisher name, followed by a comma.
-	// 	 - Series in parentheses, followed by a period.
-	// 	 - Volume field
-	// 	 - Issue field, in parentheses followed by a colon:
-	// 	 - Start page
-	// 	 - If end page provided, a hyphen and the end page.
-	// 	 - A period. (to end the volume/issue/pages)
-	// 	 - The DOI linked to the DOI url, if provided.
-	 
+		/* 
+			From Suzanne: 
+			author_display. date. <ACTIONABLE LINK the words in title> title. [journal]<OR>[in [editor_display}. book_title]. publisher_place, publisher, (series). volume(issue):start_page-end_page. doi<ACTIONABLE DOI>
+			My interpretation
+			- Author(s) followed by a period.
+			- Date followed by a period. (what format? year? Month/year? Whatever's in the database?)=
+			- The title, linked to somewhere else if there's a URL in the database.
+			- One of the two following:
+			- The journal name followed by a period, in italics, if provided 
+			- The word "in" followed by the editors followed by a period, if provided, followed by the book title followed by a period in italics, if provided.
+			- Publisher place, followed by a comma.
+			- Publisher name, followed by a comma.
+			- Series in parentheses, followed by a period.
+			- Volume field
+			- Issue field, in parentheses followed by a colon:
+			- Start page
+			- If end page provided, a hyphen and the end page.
+			- A period. (to end the volume/issue/pages)
+			- The DOI linked to the DOI url, if provided.
+	  */
 		if ($include_extras) {
 			if (!empty($rec->doi)) {
 				$ret[] =  '<div class="show_metric altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
 			}
+			if (!empty($rec->issn_isbn)) {
+				$ret[] =  '<div class="show_metric altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-isbn="'.$rec->issn_isbn.'"></div>';
+			}
 		}
-		$ret[] = $schema;
-		$ret[] .=  '<div class="result fa-'.$icon.'" title="'.$type.'">';			
-			// #a1# -- Author(s) followed by a period
-			if ($rec->pubtype == 'book_edited') {
-				if (!empty($rec->editor_display)) {
-					$ret[] =  $rec->editor_display;
-				}
-			} else {
-				if (!empty($rec->author_display)) {
-					$ret[] =  $rec->author_display;
-				}
-			}
-			
-			// #yr# -- Date followed by a period
-			if (!empty($rec->date)) {
-				if (!empty($rec->author_display)) {
-					if (!preg_match('/\.$/', $rec->author_display)) {
-						$ret[] =  '.';
-					}
-				}
-				$ret[] =  ' '.$rec->date;
-			}
+		if ($include_schema) {
+			$ret[] = $schema;
+		}
+ 		$ret[] .=  '<div class="result '.$icon.'" title="'.$type.'">';			
 
-			if ($rec->pubtype == 'chapter') {
-				// #t1# is the chapter title
-				$ret[] =  '. "'.$rec->title.'"';
-				if (!empty($rec->editor_display)) { 
-					if (!preg_match('/eds\./', $rec->editor_display)) {
-						$rec->editor_display .= ' (eds.)';
-					}
-					$ret[] =  ' in '.$rec->editor_display;
-				} else {
-					$ret[] =  ' in';				
-				}
-				// #ul# #t2# -- The title, linked to somewhere else if there's a URL in the database
-				if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
-					$ret[] =  ' <a href="'.$rec->link.'"><em>'.$rec->book_title.'</em></a>';
-				} else {
-					$ret[] =  ' <em>'.$rec->book_title.'</em>';
-				}
-			} elseif ($rec->pubtype == 'article' || $rec->pubtype == 'magazine_article' || $rec->pubtype == 'newspaper_article') {
-				// #ul# #t1# -- The title, linked to somewhere else if there's a URL in the database
-				if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
-					$ret[] =  '. <a href="'.$rec->link.'">"'.$rec->title.'"</a>';
-				} else {
-					$ret[] =  '. "'.$rec->title.'"';
-				}
-				
-			} else {
-				// #ul# #t1# -- The title, linked to somewhere else if there's a URL in the database
-				if (!empty($rec->link) && preg_match('/http/', $rec->link)) {
-					$ret[] =  '. <a href="'.$rec->link.'"><em>'.$rec->title.'</em></a>';
-				} else {
-					$ret[] =  '. <em>'.$rec->title.'</em>';
-				}
-			}
-		
-			// #jf# -- One of the two following
-			if ($rec->pubtype == 'article' || $rec->pubtype == 'magazine_article' || $rec->pubtype == 'newspaper_article') {
-				if (!empty($rec->journal)) {
-					// -- The journal name followed by a period, in italics, if provided
-					$ret[] =  ' <em>'.$rec->journal.'</em>';
-				}
-			}
-			// 	 - Publisher place, followed by a comma.
-			if ($rec->pubtype != 'article' && $rec->pubtype != 'magazine_article' && $rec->pubtype != 'newspaper_article') {
-				if (!empty($rec->publisher_place)) {
-					$ret[] =  '. '.$rec->publisher_place;
-				}
-				// 	 - Publisher name, followed by a comma.
-				if (!empty($rec->publisher)) {
-					$ret[] =  ', '.$rec->publisher;
-				}
-			}
-			// 	 - Series in parentheses, followed by a period.
-			// QUESTION FOR SUZANNE: Will we ever have series and issue but no volume?
-			if (!empty($rec->series)) {
-				$ret[] =  '. ('.$rec->series.').';
-			}
-			// 	 - Volume field
-			if (!empty($rec->volume)) {
-				$ret[] =  '. '.$rec->volume;
-			}
-			// 	 - Issue field, in parentheses followed by a colon:
-			if (!empty($rec->issue)) {
-				$ret[] =  ' ('.$rec->issue.')';
-			}
-			// 	 - Start page
-			if (!empty($rec->start_page)) {
-				$ret[] =  ':'.$rec->start_page;
-			}
-			// 	 - If end page provided, a hyphen and the end page.
-			if (!empty($rec->end_page)) {
-				$ret[] =  '-'.$rec->end_page;
-			}
-			// 	 - The DOI linked to the DOI url, if provided.
-			if (!empty($rec->doi)) {
-				$ret[] =  '. <a href="https://doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
-			}
-			// 	 - A period. (to end everything)
-			$ret[] =  '.';
+    // Something else has made the citation for us. Yay!
+    $ret[] .= $rec->citation;
+
+    // Display the abstract, etc if necessary
+    if ($include_extras) {
+     // if (!empty($rec->abstract) || !empty($rec->keywords) || !empty($rec->orcid_list) || !empty($rec->funders)) {
+        $ret[] = '<button class="view-abstract" data-id="'.$rec->id.'" onClick="sroToggleAbstract(this);">More...</button>';
+        $ret[] = '<div class="abstract" id="abstract-'.$rec->id.'">';
+        if (!empty($rec->id)) {
+          $ret[] = '<strong>ID:</strong> <a href="/publication-details/?id='.$rec->id.'">'.$rec->id.'</a><br>';
+        }
+        $ret[] = '<strong>Type:</strong> '.$rec->item_type.'</a><br>';
+        if (!empty($rec->authors)) {
+          $authors = [];
+          foreach ($rec->authors as $a) {
+            if ($a->profiles_id) {
+              $authors[] = '<a href="/publications/?action=sro_search_results&q='.$a->profiles_id.'">'.$a->name.'</a>';
+            } elseif ($a->orcid) {
+              $authors[] = '<a href="/publications/?action=sro_search_results&q='.$a->profiles_id.'">'.$a->name.'</a>';
+            } else {
+              $authors[] = $a->name;
+            }            
+          }
+          $ret[] = '<strong>Authors:</strong> '.implode($authors, '; ').'<br>';
+        }
+        if (!empty($rec->keywords)) {
+          $ret[] = '<strong>Keywords:</strong> '.implode($rec->keywords, '; ').'<br>';
+        }
+        if (!empty($rec->abstract)) {
+          $ret[] = '<strong>Abstract:</strong> '.$rec->abstract.'<br>';
+        }
+        if (!empty($rec->orcid_list)) {
+          $ret[] = '<strong>ORCID(s):</strong> '.$rec->orcid_list.'<br>';
+        }
+        if (!empty($rec->funders)) {
+          $ret[] = '<strong>Funders:</strong> '.$rec->funders.'<br>';
+        }
+        $ret[] = '</div>';
+     // }
+    }
 		$ret[] =  '</div>';
 		return implode('', $ret);
 	}
 	
-  /* 
-   * Format one record while printing to a webpage
-   * 
-   * $include_extras will print COINS data and Altmetric 
-   * Badges onto the page.
-   *
-   * This just encapsultates a lot of code that would otherwise
-   * make the _format_html_results() messier.
-   */ 
-  /*
-	function _format_html_entry_old($rec, $include_extras = false) {
-		$coins = array();
-		$coins[] = 'url_ver=Z39.88-2004';
-		$coins[] = 'ctx_ver=Z39.88-2004';
-		$coins[] = 'rfr_id=info%3Asid%2Fzotero.org%3A2';
-		if (!empty($rec->authors)) {
-			foreach (_unique_authors($rec->authors) as $a) {
-				$coins[] = 'rft.au='.urlencode($a->name);
-			}
-		}
-		$coins[] = 'rft.date='.urlencode($rec->date);
+	function _format_authors($authors) {
+      
+    if (count($authors) == 1) {
+      return array_pop($authors);
 
-		// Normalization
-		if (!empty($rec->title)) {
-			$rec->title = preg_replace('/<[^>].*>/', '', $rec->title);
-		}
-		if ($include_extras) {
-			if ($rec->pubtype == 'article') {
-				// COinS DATA FOR ZOTERO IMPORT
-				if (!empty($rec->doi)) {
-					$coins[] = 'rft_id=info%3Adoi%2F'.urlencode($rec->doi);
-				}
-				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Ajournal';
-				$coins[] = 'rft.genre=article';
-				$coins[] = 'rft.atitle='.urlencode($rec->title);
-				$coins[] = 'rft.jtitle='.urlencode($rec->journal);
-				if (!empty($rec->volume)) {
-					$coins[] = 'rft.volume='.urlencode($rec->volume);
-				}
-				if (!empty($rec->issue)) {
-					$coins[] = 'rft.issue='.urlencode($rec->issue);
-				}
-				$coins[] = 'rft.stitle='.urlencode($rec->journal);
-				$coins[] = 'rft.pages='.urlencode($rec->pages);
-				if (!empty($rec->pages)) {
-					if (strpos($rec->pages, '-')) {
-						$p = explode('-', $rec->pages);
-						$coins[] = 'rft.spage='.$p[0];
-						$coins[] = 'rft.epage='.$p[1];
-					} else {
-						$coins[] = 'rft.spage='.$rec->pages;
-					}
-				}
-				if (!empty($rec->issn)) {
-					$coins[] = 'rft.issn='.urlencode($rec->issn);
-				}
-			} elseif ($rec->pubtype == 'chapter') {
-				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
-				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
-				$coins[] = 'rft.genre=bookitem';
-				$coins[] = 'rft.atitle='.urlencode($rec->title);
-				$coins[] = 'rft.btitle='.$rec->book_title;
-				$coins[] = 'rft.publisher='.urlencode($rec->publisher);
-				$coins[] = 'rft.pages='.urlencode($rec->pages);
-			} elseif ($rec->pubtype == 'book') {
-				$coins[] = 'rft_id=urn%3Aisbn%3A'.$rec->isbn;
-				$coins[] = 'rft_val_fmt=info%3Aofi%2Ffmt%3Akev%3Amtx%3Abook';
-				$coins[] = 'rft.genre=book';
-				$coins[] = 'rft.btitle='.urlencode($rec->title);
-				$coins[] = 'rft.tpages='.urlencode($rec->pages);
-			}
-			// $ret .= '<span class="Z3988" title="'.implode('&amp;',$coins).'"></span>';
-		} 
-		
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		if ($rec->pubtype == 'article') { // and (k1 does not contain 'Book review')
-			$ret .= '<div class="schema-dot-org">';
-				$ret .= '<div itemscope="" itemtype="http://schema.org/ScholarlyArticle">';
-					$ret .= '<span property="name">'.$rec->title.'</span>';
-					foreach (_unique_authors($rec->authors) as $a) {
-                                                $ret .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
-					}
-					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
-					if (!empty($rec->doi)) {
-						$ret .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
-					}
-					$ret .= '<span property="isPartOf" typeof="Periodical">';
-					$ret .= '<span property="name">'.$rec->journal.'</span>';
-					if ($rec->volume > 0) {
-						$ret .= 'v. <span property="volumeNumber">'.$rec->volume.'</span>';
-					}
-					if ($rec->issue > 0) {
-						$ret .= 'No. <span property="issueNumber">'.$rec->issue.'</span>';
-					}
-					$ret .= '</span>';
-				$ret .= '</div>';
-			$ret .= '</div>';
-
-			$ret .= '<div class="result fa-file-alt" title="Article">';
-				if ($include_extras) {
-					if (!empty($rec->doi)) {
-						$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
-					}
-				}
-				// #a1#
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				// #yr#
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-
-				// #ul# #t1#
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
-				} else {
-					$ret .= ' '.$rec->title;
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				// #jf#
-				$ret .= ' <span class="journal_bold journal_display"><em>'.$rec->journal.'</em></span>,';
-
-				// #vo# #is_no#
-				if ($rec->issue > 0 && $rec->volume > 0) {
-					$ret .= ' '.$rec->volume.'('.$rec->issue.')';
-				} elseif ($rec->issue > 0 && $rec->volume == 0) {
-					$ret .= ' '.$rec->issue;
-				} elseif ($rec->issue == 0 && $rec->volume > 0) {
-					$ret .= ' '.$rec->volume;
-				}
-				// #sp# #op#
-				$ret .= ' '.$rec->pages;
-				// #doi#
-				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
-				}
-			$ret .= '</div>';
-			
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'ejournal_article') {
-			if ($include_extras) {
-				if (!empty($rec->doi)) {
-					$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
-				}
-			}
-			$ret .= '<div class="result fa-file-pdf" title="E-Journal Article">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= '<a href="'.$rec->link.'">'.$rec->title.'</a>';
-				} else {
-					$ret .= $rec->title;
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="journal_bold journal_display"><em>'.$rec->journal.'</em></span>,';
-				if ($rec->issue > 0 && $rec->volume > 0) {
-					$ret .= ' '.$rec->volume.'('.$rec->issue.')';
-				} elseif ($rec->issue > 0 && $rec->volume == 0) {
-					$ret .= ' '.$rec->issue;
-				} elseif ($rec->issue == 0 && $rec->volume > 0) {
-					$ret .= ' '.$rec->volume;
-				}
-				$ret .= ' '.$rec->pages;
-				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'chapter') {
-
-			$ret .= '<div class="result fa-bookmark" title="Chapter">';
-				$ret .= '<div class="schema-dot-org">';
-					$ret .= '<div itemscope="" itemtype="http://schema.org/Chapter">';
-						$ret .= '<span itemprop="name">'.$rec->title.'</span>';
-						foreach (_unique_authors($rec->authors) as $a) {
-	                                                $ret .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
-						}
-						$ret .= '<span itemprop="pageStart">'.$rec->start_page.'</span>';
-						$ret .= '<span itemprop="pageEnd">'.$rec->end_page.'</span>';
-						$ret .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
-						$ret .= '<span itemprop="isPartOf"></span>';
-						if (!empty($rec->editors)) {
-								$ret .= '<span itemscope="" itemtype="http://schema.org/Person">';
-									$ret .= '<span itemprop="editor">';
-										foreach ($rec->editors as $a) {
-											$ret .= '<span itemprop="name">'.$a->name.'</span>';
-										}
-									$ret .= '</span>';
-							 $ret .= '</span>';
-						}
-						$ret .= '<span itemprop="name">'.$rec->book_title.'</span>';
-						$ret .= '<span property="datePublished">'.$rec->year.'</span>';
-						$ret .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
-						$ret .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
-					$ret .= '</div>';
-				$ret .= '</div>';
-				# BOOK CHAPTER DISPLAY
-
-				if ($include_extras) {
-					if (!empty($rec->doi)) {
-						$ret .= '<div class="show_metric" class="altmetric-embed" data-badge-type="donut" data-badge-popover="left" data-hide-no-mentions="true" data-doi="'.$rec->doi.'"></div>';
-					}
-				}
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
-				} else {
-					$ret .= ' '.$rec->title;
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				$ret .= ' In: ';
-				if (!empty($rec->editor_display)) {
-					$ret .= $rec->editor_display.',';
-				}
-				$ret .= ' <i>'.$rec->book_title.'.</i>';
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher;
-				}
-				if (!empty($rec->series)) {
-					$ret .= ', '.$rec->series;
-				}
-				if (!empty($rec->pages)) {
-					$ret .= ' pp. '.$rec->pages;
-				}
-				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'book') {
-			$ret .= '<div class="schema-dot-org">';
-				$ret .= '<div itemscope="" itemtype="http://schema.org/Book">';
-					$ret .= '<span property="name">'.$rec->title.'</span>';
-					foreach (_unique_authors($rec->authors) as $a) {
-						$ret .= '<span property="author" itemscope="" itemtype="http://schema.org/Person"><span itemprop="name">'.$a->name.'</span></span>';
-					}
-					$ret .= '<span property="datePublished">'.$rec->date.'</span>';
-					if (!empty($rec->doi)) {
-						$ret .= 'DOI: <a property="sameAs" href="http://dx.doi.org/'.$rec->doi.'">info:'.$rec->doi.'</a>';
-					}
-					$ret .= '<span itemprop="location">'.$rec->publisher_place.'</span>';
-					$ret .= '<span itemprop="publisher">'.$rec->publisher.'</span>';
-					$ret .= '<span itemprop="numberOfPages">'.$rec->pages.'</span>';
-					$ret .= '<span itemprop="ISBN">'.$rec->issn_isbn.'</span>';
-					$ret .= '</span>';
-				$ret .= '</div>';
-			$ret .= '</div>';
-
-			# BOOK DISPLAY
-
-			$ret .= '<div class="result fa-book" title="Book">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
-				} else {
-					$ret .= ' '.$rec->title;
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				if (!empty($rec->editor_display)) {
-					$ret .= ' '.$rec->editor_display;
-				}
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.'.';
-				}
-				if (!empty($rec->book_title)) {
-					$ret .= ' '.$rec->book_title;
-					if (!empty($rec->book_title)) {
-						$ret .= ' ('.$rec->volume.')';
-					}
-				}
-				if (!empty($rec->book_title)) {
-					$ret .= ' '.$rec->pages.' pages.';
-				}
-				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'book_edited') {
-			$ret .= '<div class="result fa-book" title="Book, Edited">';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= '<em><a href="'.$rec->link.'">'.$rec->title.'</a></em>';
-				} else {
-					$ret .= '<em>'.$rec->title.'</em>';
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				if (!empty($rec->editor_display)) {
-					$ret .= $rec->editor_display.',';
-					if (!preg_match('/[.?]$/', $rec->editor_display)) {
-						$ret .= '.';
-					}
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.'.';
-				}
-				if (!empty($rec->book_title)) {
-					$ret .= ' '.$rec->book_title;
-					if (!empty($rec->book_title)) {
-						$ret .= ' ('.$rec->volume.')';
-					}
-				}
-				if (!empty($rec->book_title)) {
-					$ret .= ' '.$rec->pages.' pages.';
-				}
-				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'thesis') {
-			$ret .= '<div class="result fa-file-edit" title="Thesis">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
-				} else {
-					$ret .= ' '.$rec->title;
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.'.';
-				}
-				if (!empty($rec->book_title)) {
-					$ret .= ' '.$rec->pages.' pages.';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'web_page') {
-			$ret .= '<div class="result fa-globe" title="Web Page">';
-
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
-				} else {
-					$ret .= ' '.$rec->title;
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.'.';
-				}
-				if (!empty($rec->link)) {
-					$ret .= ' (<a href="'.$rec->link.'">'.$rec->link.'</a>).';
-				}
-				if (!empty($rec->date)) {
-					$ret .= ' '.$rec->date.'';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'magazine_article') {
-			$ret .= '<div class="result fa-file" title="Magazine Article">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= ' <a href="'.$rec->link.'">'.$rec->title.'</a>';
-				} else {
-					$ret .= ' '.$rec->title;
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="journal_bold journal_display"><em>'.$rec->journal.'</em></span>.';
-				if ($rec->issue > 0 && $rec->volume > 0) {
-					$ret .= ' '.$rec->volume.'('.$rec->issue.')';
-				} elseif ($rec->issue > 0 && $rec->volume == 0) {
-					$ret .= ' '.$rec->issue;
-				} elseif ($rec->issue == 0 && $rec->volume > 0) {
-					$ret .= ' '.$rec->volume;
-				}
-				$ret .= ' pp. '.$rec->pages;
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'video_dvd') {
-			$ret .= '<div class="result fa-video" title="Video/DVD">';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= '<em><a href="'.$rec->link.'">'.$rec->title.'</a></em>';
-				} else {
-					$ret .= '<em>'.$rec->title.'</em>';
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				$ret .= ' '.$rec->pubtype.'.';
-				$ret .= ' '.$rec->author_display.';';
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher;
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'audio') {
-			$ret .= '<div class="result fa-volume-up" title="Audio Recording">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= '<em><a href="'.$rec->link.'">'.$rec->title.'</a></em>';
-				} else {
-					$ret .= '<em>'.$rec->title.'</em>';
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				$ret .= ' '.$rec->pubtype.'.';
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher;
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'report') {
-			$ret .= '<div class="result fa-list-alt" title="Report">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				$ret .= '"'.$rec->title.'".';
-				$ret .= ' <em>'.$rec->journal.'</em>.';
-				if (!empty($rec->editor_display)) {
-					$ret .= ' ed.'.$rec->editor_display.'.';
-				}
-				if (!empty($rec->volume)) {
-					$ret .= ' '.$rec->volume.'.';
-				}
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.',';
-				}
-				if (!empty($rec->pages)) {
-					$ret .= ' '.$rec->pages.'.';
-				}
-				if (!empty($rec->link)) {
-					$ret .= ' (<a href="'.$rec->link.'">'.$rec->link.'</a>).';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'newspaper_article') {
-			$ret .= '<div class="result fa-newspaper" title="Newspaper Article">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= ' <a href="'.$rec->link.'">"'.$rec->title.'"</a>';
-				} else {
-					$ret .= " '".$rec->title.'"';
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				$ret .= ' <em>'.$rec->journal.'</em>.';
-				if (!empty($rec->issue)) {
-					$ret .= ' '.$rec->issue.',';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'motion_picture') {
-			$ret .= '<div class="result fa-film" title="Motion Picture">';
-
-				$ret .= $rec->author_display;
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= '<em><a href="'.$rec->link.'">'.$rec->title.'</a></em>.';
-				} else {
-					$ret .= '<em>'.$rec->title.'</em>.';
-				}
-				$ret .= ' '.$rec->pubtype.'.';
-				if (!empty($rec->acknowledgement)) {
-					$ret .= ' '.$rec->acknowledgement.':';
-				}
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.'.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'monograph') {
-			$ret .= '<div class="result fa-book" title="Monograph">';
-
-				if (!empty($rec->author_display)) {
-					$ret .= $rec->author_display;
-					if (!preg_match('/\.$/', $rec->author_display)) {
-						$ret .= '.';
-					}
-				} else {
-					$ret .= $rec->editor_display;
-					if (!preg_match('/\.$/', $rec->editor_display)) {
-						$ret .= '.';
-					}
-				}
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= '<em><a href="'.$rec->link.'">'.$rec->title.'</a></em>.';
-				} else {
-					$ret .= '<em>'.$rec->title.'</em>.';
-				}
-				if (!empty($rec->issue)) {
-					$ret .= ' '.$rec->issue.'.';
-				}
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.'.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>,';
-				if (!empty($rec->book_title)) {
-					$ret .= ' pp.'.$rec->pages;
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'map') {
-			$ret .= '<div class="result fa-map" title="Map">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= '<em>'.$rec->title.'</em>.';
-				if (!empty($rec->book_title)) {
-					$ret .= ' '.$rec->book_title.'.';
-				}
-				if (!empty($rec->volume)) {
-					$ret .= ' '.$rec->volume.',';
-				}
-				if (!empty($rec->issue)) {
-					$ret .= ' '.$rec->issue.'.';
-				}
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.',';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'artwork') {
-			$ret .= '<div class="result fa-image" title="Artwork">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'abstract') {
-			$ret .= '<div class="result fa-align-justify" title="Abstract">';
-				$ret .= $rec->author_display;
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				$ret .= '[Abstract:] "'.$rec->title.'".';
-				if (!empty($rec->book_title)) {
-					$ret .= ' <em>'.$rec->book_title.'</em>,';
-				}
-				if (!empty($rec->book_title)) {
-					$ret .= ' :'.$rec->pages.'.';
-				}
-				if (!empty($rec->link)) {
-					$ret .= '<a href="'.$rec->link.'">'.$rec->link.'</a>';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'forum_blog') {
-			$ret .= '<div class="result fa-comments" title="Forum/Blog Post">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				$ret .= ' "'.$rec->title.'".';
-				if (!empty($rec->journal)) {
-					$ret = ' <em>'.$rec->journal.'</em>.';
-				} elseif (!empty($rec->book_title)) {
-					$ret = ' '.$rec->book_title.'.';
-				}
-				if (!empty($rec->link)) {
-					$ret .= '<a href="'.$rec->link.'">'.$rec->link.'</a>';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} elseif ($rec->pubtype == 'generic') {
-			$ret .= '<div class="result fa-rectangle-portrait" title="Generic">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				$ret .= '[Presentation:] "'.$rec->title.'".';
-				if (!empty($rec->journal)) {
-					$ret = ' <em>'.$rec->journal.'</em>.';
-				} elseif (!empty($rec->book_title)) {
-					$ret = ' '.$rec->book_title.'.';
-				}
-				if (!empty($rec->link)) {
-					$ret .= '<a href="'.$rec->link.'">'.$rec->link.'</a>';
-				}
-			$ret .= '</div>';
-
-		// ------------------------------------------------------------------------------
-		// ------------------------------------------------------------------------------
-		} else {
-			$ret .= '<div class="result fa-question-circle" title="Other">';
-				$ret .= $rec->author_display;
-				if (!preg_match('/\.$/', $rec->author_display)) {
-					$ret .= '.';
-				}
-				$ret .= ' <span class="date_highlight date_display">'.$rec->date.'</span>.';
-				if (preg_match('/http/', $rec->link)) {
-					$ret .= '<a href="'.$rec->link.'">'.$rec->title.'</a>.';
-				} else {
-					$ret .= $rec->title.'.';
-				}
-				if (!preg_match('/[.?]$/', $rec->title)) {
-					$ret .= '.';
-				}
-				if (!empty($rec->publisher_place)) {
-					$ret .= ' '.$rec->publisher_place.':';
-				}
-				if (!empty($rec->publisher)) {
-					$ret .= ' '.$rec->publisher.'.';
-				}
-				if (!empty($rec->doi)) {
-					$ret .= ' <a href="http://dx.doi.org/'.$rec->doi.'">doi:'.$rec->doi.'</a>';
-				}
-			$ret .= '</div>';
-
-//    ALTHOUGH THIS IS REFERENCE TYPE: JOURNAL ARTICLE, THIS SEGMENT HOPEFULLY IDENTIFIES IT AS A BOOK REVIEW.
-// 		REMOVED PER DISCUSSION W/SCP 2016-11-8
-//    Dashes added by JMR 2017/08/03
-// 		 } elseif ((rt eq 'Journal Article') and (k1 contains 'Book review')) {
-// 			#-a1-#
-// 				if (REfind("\.$","#-a1-#")) {  } else { . }<span class="date_highlight date_display">#-yr-#</span>.
-// 				if (REfind ("[R|r]eview","#-t1-#")) { } else { [Review]:}
-// 				if (ul contains 'http') {<a href="#ul#">#-t1-#</a> } else { #-t1-#}.
-//        <span class="journal_bold journal_display"><i>#jf#</i></span>,
-// 				if (is_no ge '0' and vo ge '0') {#vo#(#is_no#) } elseif (vo eq ' ' and is_no ge '0') { #is_no# } elseif (vo ge '0' and is_no eq ' ') { #vo#}: #sp#
-// 				if (op ge '0' and op neq sp) {-#op#. } else { }
-// 				if (doi contains '10.') {<a href="http://dx.doi.org/#doi#"> doi:#doi#</a>}<br />
-// 			$ret .= '</div>';
-
-
-		}
-		return $ret;
+    } elseif (count($authors) <= 25) {
+      $last_author = array_pop($authors);
+      return implode(', ', $authors).' and '.$last_author;
+       
+    } elseif (count($authors) > 25) {
+      $authors = array_splice($authors, 25);
+      return implode(', ', $authors). ' et al.';
+    } else {
+      return '';
+    }
 	}
-  */
-
+	
   /* 
    * Send the query to the Search API and decode the results. 
    * 
@@ -1822,7 +1219,6 @@ class SROSearch {
    * where we can add the exact parameters for a hardcoded query
    * to the search server, which goes directly to this function.
    */ 
-
 	function _execute_query($url, $args) {
 		if (!empty($args['full_query'])) {
 			$query = $args['full_query'];
@@ -1834,18 +1230,20 @@ class SROSearch {
 			$query = implode('&', $query);
 		}	
 		$results = null;
-		$ctx = stream_context_create(array( 
-			'http' => array( 
-				'timeout' => 60
-			)
-		)); 
 		if (count($args) > 0) {
 			if (!preg_match('/\/$/', $url)) {
 				$url .= '/';
 			}			
 			try {
-			
-				$results = file_get_contents($url.'?'.$query, false, $ctx);			
+				print "<!-- QUERY = ".$url.'?'.$query." -->";
+				$ch = curl_init();
+				curl_setopt($ch, CURLOPT_URL, $url.'?'.$query);
+			        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+			        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+			        curl_setopt($ch, CURLOPT_FAILONERROR, true);
+			        curl_setopt($ch, CURLOPT_USERAGENT, 'PHP Code (research.si.edu)');
+				curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+				$results = curl_exec($ch);
 				if ($results === false) {
 					return null;
 				}
@@ -1853,10 +1251,18 @@ class SROSearch {
 				// Handle exception
 				print '<h5 class="error">'.($e->getMessage()).'</h5>';
 			}
-			
+			$results = preg_replace("/^\/\//",'',$results);
 			$results = json_decode($results);
 		} else {
-			$results = file_get_contents($url, false, $ctx);
+			$ch = curl_init();
+			curl_setopt($ch, CURLOPT_URL, $url.'?'.$query);
+			curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+			curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+			curl_setopt($ch, CURLOPT_FAILONERROR, true);
+			curl_setopt($ch, CURLOPT_USERAGENT, 'PHP Code (research.si.edu)');
+			curl_setopt($ch, CURLOPT_RETURNTRANSFER, 1);
+			$results = curl_exec($ch);
+
 		}
 		return $results;		
 	}
@@ -1869,7 +1275,13 @@ class SROSearch {
 
 			// Do the altmetrics search at SRO in CSV
 			if ($params['send_to'] == 'download' && $params['export_format'] == 'altmetrics') {
-				$results = $this->_execute_query($params['server_url'].'/altmetrics_pubs.cfm', array());
+
+				$options = get_option(
+					'server_altmetrics_url',
+					array('server_altmetrics_url' => 'http://staff.research.si.edu/search-api/altmetrics_pubs.cfm', 'query_extra' => '')
+				);
+
+				$results = $this->_execute_query($options['server_altmetrics_url'], array());
 				return $results;
 			}					
 
@@ -1879,12 +1291,13 @@ class SROSearch {
 				$query = array(
 					'search'  => $params['search_term'],
 					'limit'   => $params['limit'],
-					'year'    => $params['year'],
+					'exact'   => $params['exact'],
+					'year'    => $params['date'],
 					'dept'    => $params['dept'],
 					'count'   => $params['perpage'],
 					'pagenum' => $params['page'],
 					'sort'    => $params['sort']
-				);
+				);				
 				$results = $this->_execute_query($params['server_url'], $query);
 				return $results;
 			}
@@ -1896,57 +1309,15 @@ class SROSearch {
 	 * This should really be an API call to somewhere else 
 	 */
 	function _sro_get_departments() {
-		// TODO: This should really be an API Call
-		return array(
-			array('id' => '690000', 'name' => 'Anacostia Community Museum'), 
-			array('id' => '480000', 'name' => 'Archives of American Art'), 
-			array('id' => '710000', 'name' => 'Asian Pacific American Center'), 
-			array('id' => '510000', 'name' => 'Center for Folklife and Cultural Heritage'), 
-			array('id' => '580000', 'name' => 'Cooper-Hewitt National Design Museum'), 
-			array('id' => '540000', 'name' => 'Freer-Sackler Galleries'), 
-			array('id' => '560000', 'name' => 'Hirshhorn Museum and Sculpture Garden'), 
-			array('id' => '640000', 'name' => 'Museum Conservation Institute'), 
-			array('id' => '380000', 'name' => 'National Air and Space Museum'), 
-			array('id' => '382010', 'name' => 'NASM-Aeronautics'), 
-			array('id' => '382020', 'name' => 'NASM-Space History'), 
-			array('id' => '382050', 'name' => 'NASM-CEPS'), 
-			array('id' => '680000', 'name' => 'National Museum of African American History and Culture'), 
-			array('id' => '570000', 'name' => 'National Museum of African Art'), 
-			array('id' => '550000', 'name' => 'National Museum of American History'), 
-			array('id' => '330000', 'name' => 'NMNH'), 
-			array('id' => '331040', 'name' => 'NMNH Encyclopedia of Life'), 
-			array('id' => '332010', 'name' => 'NH-Mineral Science'), 
-			array('id' => '332020', 'name' => 'NH-Anthropology'), 
-			array('id' => '332031', 'name' => 'NH-Invertebrate Zoology'), 
-			array('id' => '332032', 'name' => 'NH-Vertebrate Zoology'), 
-			array('id' => '332033', 'name' => 'NH-Botany'), 
-			array('id' => '332034', 'name' => 'NH-Entomology'), 
-			array('id' => '332040', 'name' => 'NH-Paleobiology'), 
-			array('id' => '332050', 'name' => 'NH-Smithsonian Marine Station'), 
-			array('id' => '500000', 'name' => 'National Museum of the American Indian'), 
-			array('id' => '520000', 'name' => 'National Portrait Gallery'), 
-			array('id' => '301000', 'name' => 'National Postal Museum'), 
-			array('id' => '350000', 'name' => 'National Zoological Park'), 
-			array('id' => '770000', 'name' => 'Office of Policy and Analysis'), 
-			array('id' => '250001', 'name' => 'Office of the Under Secretary for History, Art &amp; Culture'), 
-			array('id' => '110000', 'name' => 'Secretary\'s Cabinet'), 
-			array('id' => '100000', 'name' => 'SI-Other'), 
-			array('id' => '530000', 'name' => 'Smithsonian American Art Museum'), 
-			array('id' => '404000', 'name' => 'Smithsonian Astrophysical Observatory'), 
-			array('id' => '390000', 'name' => 'Smithsonian Environmental Research Center'), 
-			array('id' => '733400', 'name' => 'Smithsonian Gardens'), 
-			array('id' => '170000', 'name' => 'Smithsonian Institution Archives'), 
-			array('id' => '360000', 'name' => 'Smithsonian Latino Center'), 
-			array('id' => '630000', 'name' => 'Smithsonian Institution Libraries'), 
-			array('id' => '340000', 'name' => 'Smithsonian Tropical Research Institute'), 
-			array('id' => '250000', 'name' => 'Arts and Humanities'), 
-			array('id' => '590000', 'name' => 'Science'), 
-			array('id' => '941000', 'name' => 'Smithsonian Institution Scholarly Press'), 
-			array('id' => '960000', 'name' => 'DUSCIS')
+		$options = get_option(
+			'sro_options',
+			array('depts_url' => 'http://staff.research.si.edu/search-api/departments/', 'query_extra' => '')
 		);
+		$json = file_get_contents($options['depts_url']);
+		$json = preg_replace("/^\/\//",'',$json);
+		return json_decode($json, true);
 	}
 }
-
 
 /* Creates a Page in wordpress to contain the shortcode 
  * to display the search form and results. Called when this
@@ -2051,13 +1422,37 @@ function _unique_authors($authors) {
 	return $ret;
 }
 
+/* Custom RSS feed for the most recent publications
+ * Perform a fixed search, print RSS to the screen
+ */
+function _get_latestPubsRSS() {
+	global $wpSROSearch;
+
+	header( 'Content-Type: ' . feed_content_type( 'rss2' ) . '; charset=' . get_option( 'blog_charset' ), true );
+
+	// Do the search with the parameters, format and return the results
+	// This is where you run the code and display the output
+	$options = get_option(
+		'sro_options',
+		array('server_url' => 'http://staff.research.si.edu/search-api/publications/', 'query_extra' => '')
+	);
+
+	$json = $wpSROSearch->_execute_query(
+		$options['server_url'], 
+		array('full_query' => 'count=25&override=1&sort=added')
+	);
+
+	$rss = $wpSROSearch->_format_rss_results($json);
+	print($rss);
+}
+
 /* ------------------------------ */
 /*    WORDPRESS API ACTIVITIES    */
 /* ------------------------------ */
 
 /* Add our CSS to the page output */
 function my_scripts() {
-  wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__));
+  wp_register_style('silibraries-sro', plugins_url('/css/style.css', __FILE__), array(), SRO_VERSION);
   wp_enqueue_style('silibraries-sro');
 }
 
@@ -2075,3 +1470,9 @@ add_action('wpmu_new_blog', 'sro_insert_search_results_page_new_blog', 10, 6 );
 
 add_action('wp_enqueue_scripts', 'my_scripts');
 
+add_filter( 'pre_get_document_title', array($wpSROSearch, '_set_page_title'), 10, 1);
+
+add_filter( 'the_title', array($wpSROSearch, '_set_page_title'), 10, 2);
+
+add_action('init', 'customRSS');
+function customRSS() { add_feed('latest-publications', '_get_latestPubsRSS'); }
